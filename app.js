@@ -403,21 +403,26 @@ async function syncCloudSave() {
         if (!user) return;
         const uid = user.id;
 
+        const checkErr = (res, context) => {
+            if (res.error) throw new Error(`Erro em ${context}: ${res.error.message || JSON.stringify(res.error)}`);
+        };
+
         if (currentUser.accountType === 'uber') {
-            if (uberEntries.length) await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, gross: e.gross, fuel: e.fuel, other: e.other, other_desc: e.otherDesc, km: e.km })));
-            if (personalEntries.length) await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, category: e.category, value: e.value, status: e.status, description: e.desc })));
-            await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings });
+            if (uberEntries.length) checkErr(await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, gross: e.gross, fuel: e.fuel, other: e.other, other_desc: e.otherDesc, km: e.km }))), 'Uber Entries');
+            if (personalEntries.length) checkErr(await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, category: e.category, value: e.value, status: e.status, description: e.desc }))), 'Personal Entries');
+            checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings }), 'Uber Settings');
         } else {
-            if (estoqueItems.length) await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ id: e.id, user_id: uid, nome: e.nome, categoria: e.categoria, tamanho: e.tamanho, qtd: e.qtd, custo: e.custo, preco_venda: e.precoVenda, data_entrada: e.dataEntrada })));
-            if (comprasEntries.length) await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, produto: e.produto, qtd: e.qtd, custo: e.custo, transporte: e.transporte, fornecedor: e.fornecedor })));
-            if (vendasEntries.length) await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs })));
-            await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings });
+            if (estoqueItems.length) checkErr(await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ id: e.id, user_id: uid, nome: e.nome, categoria: e.categoria, tamanho: e.tamanho, qtd: e.qtd, custo: e.custo, preco_venda: e.precoVenda, data_entrada: e.dataEntrada }))), 'Estoque');
+            if (comprasEntries.length) checkErr(await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, produto: e.produto, qtd: e.qtd, custo: e.custo, transporte: e.transporte, fornecedor: e.fornecedor }))), 'Compras');
+            if (vendasEntries.length) checkErr(await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs }))), 'Vendas');
+            checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings }), 'Roupas Settings');
         }
         
         lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         updateSyncTimeUI();
     } catch(err) {
         console.warn('Falha ao salvar no banco de dados da hospedagem:', err);
+        alert('Erro ao sincronizar na nuvem:\n\n' + err.message);
     }
 }
 
