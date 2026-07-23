@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Financeiro — Uber & Vendas de Roupas</title>
+    <meta name="description" content="Sistema de controle financeiro para motoristas Uber e vendedores de roupas no Paraguai.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== AUTH OVERLAY ===================== -->
+<div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="brand-icon auth-brand-icon"><i class="fa-solid fa-wallet"></i></div>
+            <h2>Controle Financeiro</h2>
+            <p>Acesse sua conta para continuar</p>
+        </div>
+
+        <div class="auth-tabs">
+            <button id="authTabLoginBtn" class="auth-tab-btn active">Entrar</button>
+            <button id="authTabRegisterBtn" class="auth-tab-btn">Cadastrar-se</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" class="auth-form">
+            <div class="form-group">
+                <label for="loginUsername"><i class="fa-solid fa-user"></i> Usuário</label>
+                <input type="text" id="loginUsername" placeholder="Digite seu usuário" required class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="loginPassword"><i class="fa-solid fa-lock"></i> Senha</label>
+                <input type="password" id="loginPassword" placeholder="Digite sua senha" required class="form-control">
+            </div>
+            <div id="loginErrorMsg" class="auth-error-msg hidden"></div>
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-right-to-bracket"></i> Entrar no Sistema
+            </button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="registerForm" class="auth-form hidden">
+            <div class="form-group">
+                <label for="regName"><i class="fa-solid fa-id-card"></i> Nome Completo</label>
+                <input type="text" id="regName" placeholder="Ex: Juan Silva" required class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="regUsername"><i class="fa-solid fa-user"></i> Nome de Usuário</label>
+                <input type="text" id="regUsername" placeholder="Ex: juansilva" required class="form-control">
+            </div>
+
+            <!-- Account Type Selection -->
+            <div class="form-group">
+                <label><i class="fa-solid fa-briefcase"></i> Tipo de Conta</label>
+                <div class="account-type-grid">
+                    <label class="account-type-card" id="typeCardUber">
+                        <input type="radio" name="accountType" value="uber" required>
+                        <div class="account-type-body">
+                            <div class="account-type-icon uber-icon"><i class="fa-solid fa-car-side"></i></div>
+                            <span class="account-type-title">Motorista Uber</span>
+                            <span class="account-type-desc">Controle de diárias, gasolina e despesas da casa</span>
+                        </div>
+                    </label>
+                    <label class="account-type-card" id="typeCardRoupas">
+                        <input type="radio" name="accountType" value="roupas" required>
+                        <div class="account-type-body">
+                            <div class="account-type-icon roupas-icon"><i class="fa-solid fa-shirt"></i></div>
+                            <span class="account-type-title">Vendedor de Roupas</span>
+                            <span class="account-type-desc">Estoque, compras de mercadoria e controle de vendas</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="regPassword"><i class="fa-solid fa-lock"></i> Senha</label>
+                <input type="password" id="regPassword" placeholder="Crie uma senha" required class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="regConfirmPassword"><i class="fa-solid fa-key"></i> Confirmar Senha</label>
+                <input type="password" id="regConfirmPassword" placeholder="Repita a senha" required class="form-control">
+            </div>
+            <div id="regErrorMsg" class="auth-error-msg hidden"></div>
+            <button type="submit" class="btn btn-secondary btn-block">
+                <i class="fa-solid fa-user-plus"></i> Criar Minha Conta
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== UBER APP ===================== -->
+<div class="app-container hidden" id="uberApp">
+    <header class="app-header-container">
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-icon uber-brand"><i class="fa-solid fa-car-side"></i></div>
+                <div>
+                    <h1>Controle Financeiro — Uber</h1>
+                    <p class="subtitle">Gestão de Diárias, Gasolina e Despesas da Casa</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="user-profile-badge">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span id="uberHeaderUserName">Usuário</span>
+                    <button id="uberLogoutBtn" class="btn btn-sm btn-ghost"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                </div>
+                <button id="openSettingsBtn" class="btn btn-outline"><i class="fa-solid fa-gear"></i> Configurações</button>
+                <button id="exportCsvBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Exportar CSV</button>
+            </div>
+        </div>
+        <div class="controls-bar">
+            <nav class="tabs-nav" id="uberTabsNav">
+                <button class="tab-btn active" data-tab="tab-uber"><i class="fa-solid fa-car-side"></i> Uber (Trabalho)</button>
+                <button class="tab-btn" data-tab="tab-personal"><i class="fa-solid fa-house-chimney"></i> Gastos da Casa</button>
+                <button class="tab-btn" data-tab="tab-summary"><i class="fa-solid fa-chart-pie"></i> Resumo Consolidado</button>
+            </nav>
+            <div class="filter-group">
+                <label for="monthFilter"><i class="fa-regular fa-calendar-days"></i> Mês:</label>
+                <select id="monthFilter" class="select-input"></select>
+            </div>
+        </div>
+    </header>
+
+    <!-- TAB: Uber Trabalho -->
+    <div id="tab-uber" class="tab-content active">
+        <section class="kpi-grid">
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Faturamento Total (Mês)</span>
+                    <h2 id="kpiGrossEarnings">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiGrossDays">0 dias trabalhados</span>
+                </div>
+            </div>
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-gas-pump"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Gastos com Gasolina</span>
+                    <h2 id="kpiFuelExpenses">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiFuelPercent">0% do faturamento</span>
+                </div>
+            </div>
+            <div class="kpi-card other">
+                <div class="kpi-icon"><i class="fa-solid fa-wrench"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Outros Gastos Uber</span>
+                    <h2 id="kpiOtherExpenses">₲ 0</h2>
+                    <span class="kpi-subtext">Manutenção, lava-rápido, etc.</span>
+                </div>
+            </div>
+            <div class="kpi-card total-expenses">
+                <div class="kpi-icon"><i class="fa-solid fa-receipt"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">TOTAL GASTOS UBER</span>
+                    <h2 id="kpiTotalExpenses">₲ 0</h2>
+                    <span class="kpi-subtext">Gasolina + Outros</span>
+                </div>
+            </div>
+            <div class="kpi-card budget-limit">
+                <div class="kpi-icon"><i class="fa-solid fa-bullseye"></i></div>
+                <div class="kpi-content" style="width:100%">
+                    <span class="kpi-label">Meta de Lucro (Pagar Contas)</span>
+                    <h2 id="kpiBudgetLimit">₲ 0</h2>
+                    <div class="progress-bar-container"><div class="progress-bar" id="kpiBudgetProgress" style="width:0%"></div></div>
+                    <span class="kpi-subtext" id="kpiBudgetStatus">Baseado nos Gastos da Casa</span>
+                    <div class="daily-target-info" id="kpiDailyTargetNeeded">
+                        <i class="fa-solid fa-lightbulb"></i> Meta Diária Informativa: <strong>₲ 0 / dia</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Lucro Líquido Uber</span>
+                    <h2 id="kpiNetProfit">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiDailyAvgNet">Média: ₲ 0 / dia</span>
+                </div>
+            </div>
+        </section>
+        <main class="main-content">
+            <section class="card-box form-section">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-square-plus"></i> <span id="formTitle">Novo Lançamento Diário</span></h3>
+                    <button id="cancelEditBtn" class="btn btn-sm btn-ghost hidden">Cancelar</button>
+                </div>
+                <form id="entryForm" class="entry-form">
+                    <input type="hidden" id="entryId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="entryDate">Data *</label>
+                            <input type="date" id="entryDate" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="entryGross">Faturamento (<span class="currency-symbol">₲</span>) *</label>
+                            <div class="input-prefix"><span class="currency-symbol">₲</span><input type="number" step="any" min="0" id="entryGross" placeholder="0" required class="form-control"></div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="entryFuel">Gasolina (<span class="currency-symbol">₲</span>) *</label>
+                            <div class="input-prefix"><span class="currency-symbol">₲</span><input type="number" step="any" min="0" id="entryFuel" placeholder="0" required class="form-control"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="entryOther">Outros Gastos (<span class="currency-symbol">₲</span>)</label>
+                            <div class="input-prefix"><span class="currency-symbol">₲</span><input type="number" step="any" min="0" id="entryOther" placeholder="0" class="form-control"></div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="entryOtherDesc">Descrição Outros Gastos</label>
+                            <input type="text" id="entryOtherDesc" placeholder="Ex: Lava-rápido" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="entryKm">KM Rodados (Opcional)</label>
+                            <input type="number" step="0.1" min="0" id="entryKm" placeholder="180" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="saveBtn" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Salvar Lançamento</button>
+                    </div>
+                </form>
+            </section>
+            <section class="card-box charts-section">
+                <div class="card-header"><h3><i class="fa-solid fa-chart-column"></i> Faturamento vs Gastos</h3></div>
+                <div class="chart-container"><canvas id="performanceChart"></canvas></div>
+            </section>
+        </main>
+        <section class="card-box table-section">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-table-list"></i> Planilha Uber</h3>
+                    <p class="section-desc">Lançamentos salvos automaticamente.</p>
+                </div>
+                <div class="table-actions">
+                    <button id="loadSampleDataBtn" class="btn btn-sm btn-outline"><i class="fa-solid fa-magic"></i> Exemplo</button>
+                    <button id="clearAllBtn" class="btn btn-sm btn-danger-outline"><i class="fa-solid fa-trash-can"></i> Limpar Mês</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th><th>Faturamento</th><th>Gasolina</th><th>Outros</th><th>Total Gastos</th><th>Lucro Dia</th><th>Obs</th><th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td><strong>TOTAL MÊS</strong></td>
+                            <td id="footGross">₲ 0</td><td id="footFuel">₲ 0</td><td id="footOther">₲ 0</td>
+                            <td id="footTotalExpenses" class="text-danger"><strong>₲ 0</strong></td>
+                            <td id="footNet" class="text-success"><strong>₲ 0</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- TAB: Gastos da Casa -->
+    <div id="tab-personal" class="tab-content">
+        <section class="kpi-grid">
+            <div class="kpi-card other">
+                <div class="kpi-icon"><i class="fa-solid fa-house-circle-check"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Gastos Casa</span>
+                    <h2 id="kpiPersonalTotal">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiPersonalCount">0 despesas</span>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Despesas Pagas</span>
+                    <h2 id="kpiPersonalPaid">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiPersonalPaidCount">0 pagas</span>
+                </div>
+            </div>
+            <div class="kpi-card highlight">
+                <div class="kpi-icon"><i class="fa-solid fa-clock"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Despesas Pendentes</span>
+                    <h2 id="kpiPersonalPending">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiPersonalPendingCount">0 a pagar</span>
+                </div>
+            </div>
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Mercado</span>
+                    <h2 id="kpiPersonalMarket">₲ 0</h2>
+                    <span class="kpi-subtext">Compras do mês</span>
+                </div>
+            </div>
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-car"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Pagamento do Carro</span>
+                    <h2 id="kpiPersonalCar">₲ 0</h2>
+                    <span class="kpi-subtext">Parcela / Aluguel</span>
+                </div>
+            </div>
+        </section>
+        <main class="main-content">
+            <section class="card-box form-section">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-plus-circle"></i> <span id="personalFormTitle">Nova Despesa da Casa</span></h3>
+                    <button id="cancelPersonalEditBtn" class="btn btn-sm btn-ghost hidden">Cancelar</button>
+                </div>
+                <form id="personalForm" class="entry-form">
+                    <input type="hidden" id="personalId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="personalDate">Data / Vencimento *</label>
+                            <input type="date" id="personalDate" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="personalCategory">Categoria *</label>
+                            <select id="personalCategory" required class="form-control">
+                                <option value="Carro">🚗 Pagamento do Carro</option>
+                                <option value="Mercado">🛒 Mercado / Compras</option>
+                                <option value="Aluguel">🏠 Aluguel da Casa</option>
+                                <option value="Energia">⚡ Energia Elétrica</option>
+                                <option value="Internet">🌐 Internet / Telefone</option>
+                                <option value="Outros">📋 Outros</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="personalValue">Valor (<span class="currency-symbol">₲</span>) *</label>
+                            <div class="input-prefix"><span class="currency-symbol">₲</span><input type="number" step="any" min="0" id="personalValue" placeholder="0" required class="form-control"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="personalStatus">Status *</label>
+                            <select id="personalStatus" required class="form-control">
+                                <option value="Pago">✅ Pago</option>
+                                <option value="Pendente">⏳ Pendente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="personalDesc">Descrição / Observação</label>
+                        <input type="text" id="personalDesc" placeholder="Ex: Parcela do Carro, Aluguel" class="form-control">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="savePersonalBtn" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Salvar Despesa</button>
+                    </div>
+                </form>
+            </section>
+            <section class="card-box charts-section">
+                <div class="card-header"><h3><i class="fa-solid fa-pie-chart"></i> Por Categoria</h3></div>
+                <div class="chart-container"><canvas id="personalChart"></canvas></div>
+            </section>
+        </main>
+        <section class="card-box table-section">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-table"></i> Tabela de Gastos da Casa</h3>
+                    <p class="section-desc">Carro, Mercado, Aluguel, Luz, Internet e Outros.</p>
+                </div>
+                <div class="table-actions">
+                    <button id="loadPersonalSampleBtn" class="btn btn-sm btn-outline"><i class="fa-solid fa-magic"></i> Exemplo</button>
+                    <button id="clearPersonalMonthBtn" class="btn btn-sm btn-danger-outline"><i class="fa-solid fa-trash-can"></i> Limpar Mês</button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Status</th><th class="text-center">Ações</th></tr>
+                    </thead>
+                    <tbody id="personalTableBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3"><strong>TOTAL GASTOS CASA</strong></td>
+                            <td id="footPersonalTotal" class="text-danger"><strong>₲ 0</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- TAB: Resumo Uber -->
+    <div id="tab-summary" class="tab-content">
+        <section class="card-box">
+            <div class="card-header"><h3><i class="fa-solid fa-scale-balanced"></i> Balanço Geral do Mês</h3></div>
+            <div class="summary-balance-grid">
+                <div class="balance-card plus">
+                    <span class="balance-title"><i class="fa-solid fa-car"></i> (+) Lucro Líquido Uber</span>
+                    <h2 id="sumUberNet">₲ 0</h2>
+                    <small>Ganhos Uber - Gastos Uber</small>
+                </div>
+                <div class="balance-card minus">
+                    <span class="balance-title"><i class="fa-solid fa-house"></i> (-) Despesas da Casa</span>
+                    <h2 id="sumPersonalTotal">₲ 0</h2>
+                    <small>Carro, Mercado, Aluguel, Luz, Internet...</small>
+                </div>
+                <div class="balance-card total-final">
+                    <span class="balance-title"><i class="fa-solid fa-sack-dollar"></i> (=) SALDO FINAL LIVRE</span>
+                    <h2 id="sumFinalBalance">₲ 0</h2>
+                    <small id="sumFinalSubtext">Dinheiro restante no bolso</small>
+                </div>
+            </div>
+        </section>
+        <section class="card-box" style="margin-top:24px">
+            <div class="card-header"><h3><i class="fa-solid fa-chart-line"></i> Comparativo Financeiro</h3></div>
+            <div class="chart-container" style="height:320px"><canvas id="consolidatedChart"></canvas></div>
+        </section>
+    </div>
+
+    <footer class="app-footer"><p>Controle Financeiro Uber &bull; Dados salvos automaticamente por usuário.</p></footer>
+</div>
+
+<!-- Settings Modal (Uber) -->
+<div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:560px">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-gear"></i> Configurações</h3>
+            <button id="closeSettingsBtn" class="close-btn">&times;</button>
+        </div>
+        <form id="settingsForm" class="modal-body">
+            <!-- Moeda e Meta -->
+            <div class="settings-section-title">🪙 Moeda & Meta</div>
+            <div class="form-group">
+                <label for="currencySelect"><i class="fa-solid fa-coins"></i> Moeda:</label>
+                <select id="currencySelect" class="form-control">
+                    <option value="PYG">Guaraní Paraguaio (₲ PYG)</option>
+                    <option value="BRL">Real Brasileiro (R$ BRL)</option>
+                    <option value="USD">Dólar ($ USD)</option>
+                    <option value="EUR">Euro (€ EUR)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="monthlyLimitInput"><i class="fa-solid fa-bullseye"></i> Meta Personalizada (<span class="currency-symbol">₲</span>):</label>
+                <input type="number" step="any" min="0" id="monthlyLimitInput" placeholder="0 = usar total de Gastos da Casa" class="form-control">
+                <small class="text-muted">Se 0, usa automaticamente o total das despesas da casa.</small>
+            </div>
+
+            <!-- Backup por E-mail -->
+            <div class="settings-section-title" style="margin-top:12px">📧 Backup Automático por E-mail</div>
+            <div class="backup-info-box">
+                <i class="fa-solid fa-circle-info"></i>
+                O backup diário é salvo automaticamente. Para receber por e-mail, configure o <strong>EmailJS</strong> (gratuito).
+                <a href="https://www.emailjs.com" target="_blank" class="backup-link">Criar conta grátis →</a>
+            </div>
+            <div class="form-group">
+                <label for="backupEmail"><i class="fa-solid fa-envelope"></i> E-mail para receber backups:</label>
+                <input type="email" id="backupEmail" placeholder="seuemail@gmail.com" class="form-control">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="emailjsServiceId">EmailJS — Service ID:</label>
+                    <input type="text" id="emailjsServiceId" placeholder="service_xxxxxxx" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="emailjsTemplateId">EmailJS — Template ID:</label>
+                    <input type="text" id="emailjsTemplateId" placeholder="template_xxxxxxx" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="emailjsPublicKey">EmailJS — Public Key:</label>
+                <input type="text" id="emailjsPublicKey" placeholder="xxxxxxxxxxxxxxxx" class="form-control">
+                <small class="text-muted">Encontre em: emailjs.com → Account → API Keys → Public Key</small>
+            </div>
+            <div class="form-group">
+                <label><i class="fa-solid fa-code"></i> Template sugerido para o EmailJS:</label>
+                <div class="template-preview">Assunto: Backup Financeiro - {{backup_date}}<br>Corpo:<br>Olá {{from_name}},<br><br>Backup automático do dia {{backup_date}}.<br>Tipo: {{account_type}}<br><br>{{summary}}<br><br>Sistema de Controle Financeiro.</div>
+            </div>
+            <div class="backup-actions">
+                <button type="button" id="manualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup Agora</button>
+                <button type="button" id="testEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio de E-mail</button>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" id="cancelSettingsBtn" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- ===================== ROUPAS APP ===================== -->
+<div class="app-container hidden" id="roupasApp">
+    <header class="app-header-container">
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-icon roupas-brand"><i class="fa-solid fa-shirt"></i></div>
+                <div>
+                    <h1>Controle de Vendas — Roupas</h1>
+                    <p class="subtitle">Estoque, Compras de Mercadoria e Controle de Vendas</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="user-profile-badge">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span id="roupasHeaderUserName">Usuário</span>
+                    <button id="roupasLogoutBtn" class="btn btn-sm btn-ghost"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                </div>
+                <button id="openRoupasSettingsBtn" class="btn btn-outline"><i class="fa-solid fa-gear"></i> Configurações</button>
+                <button id="roupasExportCsvBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Exportar CSV</button>
+            </div>
+        </div>
+        <div class="controls-bar">
+            <nav class="tabs-nav" id="roupasTabsNav">
+                <button class="tab-btn active" data-rtab="rtab-estoque"><i class="fa-solid fa-boxes-stacked"></i> Estoque</button>
+                <button class="tab-btn" data-rtab="rtab-compras"><i class="fa-solid fa-bag-shopping"></i> Compras</button>
+                <button class="tab-btn" data-rtab="rtab-vendas"><i class="fa-solid fa-money-bill-trend-up"></i> Vendas</button>
+                <button class="tab-btn" data-rtab="rtab-resumo"><i class="fa-solid fa-chart-pie"></i> Resumo</button>
+            </nav>
+            <div class="filter-group">
+                <label for="roupasMonthFilter"><i class="fa-regular fa-calendar-days"></i> Mês:</label>
+                <select id="roupasMonthFilter" class="select-input"></select>
+            </div>
+        </div>
+    </header>
+
+    <!-- RTAB: Estoque -->
+    <div id="rtab-estoque" class="rtab-content active">
+        <section class="kpi-grid">
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total de Itens no Estoque</span>
+                    <h2 id="kpiEstoqueItens">0</h2>
+                    <span class="kpi-subtext" id="kpiEstoqueTipos">0 modelos diferentes</span>
+                </div>
+            </div>
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-tags"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Valor Total em Estoque (Custo)</span>
+                    <h2 id="kpiEstoqueValorCusto">₲ 0</h2>
+                    <span class="kpi-subtext">Investimento atual</span>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Potencial de Receita (Venda)</span>
+                    <h2 id="kpiEstoqueValorVenda">₲ 0</h2>
+                    <span class="kpi-subtext">Se vender tudo ao preço sugerido</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-box" style="margin-top:0">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-boxes-stacked"></i> Gerenciar Estoque de Roupas</h3>
+                    <p class="section-desc">Adicione, edite e controle os produtos do seu estoque.</p>
+                </div>
+                <button id="openAddEstoqueBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Adicionar Produto</button>
+            </div>
+
+            <!-- Add/Edit Estoque inline form -->
+            <div id="estoqueFormWrapper" class="inline-form-wrapper hidden">
+                <form id="estoqueForm" class="entry-form">
+                    <input type="hidden" id="estoqueId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="estoqueName">Nome do Produto *</label>
+                            <input type="text" id="estoqueName" placeholder="Ex: Camiseta Polo" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="estoqueCategory">Categoria</label>
+                            <select id="estoqueCategory" class="form-control">
+                                <option value="Camiseta">👕 Camiseta</option>
+                                <option value="Calça">👖 Calça</option>
+                                <option value="Vestido">👗 Vestido</option>
+                                <option value="Shorts">🩳 Shorts</option>
+                                <option value="Blusa">🧥 Blusa / Casaco</option>
+                                <option value="Meia">🧦 Meia / Acessório</option>
+                                <option value="Outros">📦 Outros</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="estoqueTamanho">Tamanho *</label>
+                            <select id="estoqueTamanho" class="form-control">
+                                <option value="P">P</option>
+                                <option value="M" selected>M</option>
+                                <option value="G">G</option>
+                                <option value="GG">GG</option>
+                                <option value="XG">XG</option>
+                                <option value="36">36</option>
+                                <option value="38">38</option>
+                                <option value="40">40</option>
+                                <option value="42">42</option>
+                                <option value="44">44</option>
+                                <option value="46">46</option>
+                                <option value="Único">Único</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="estoqueQtd">Quantidade em Estoque *</label>
+                            <input type="number" min="0" step="1" id="estoqueQtd" placeholder="0" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="estoqueCusto">Custo Unitário (compra) (<span class="rcurrency-symbol">₲</span>)</label>
+                            <div class="input-prefix"><span class="rcurrency-symbol">₲</span><input type="number" step="any" min="0" id="estoqueCusto" placeholder="0" class="form-control"></div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="estoquePrecoVenda">Preço de Venda Sugerido (<span class="rcurrency-symbol">₲</span>)</label>
+                            <div class="input-prefix"><span class="rcurrency-symbol">₲</span><input type="number" step="any" min="0" id="estoquePrecoVenda" placeholder="0" class="form-control"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="estoqueDataEntrada">Data de Entrada</label>
+                            <input type="date" id="estoqueDataEntrada" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-actions" style="display:flex;gap:12px">
+                        <button type="button" id="cancelEstoqueBtn" class="btn btn-outline">Cancelar</button>
+                        <button type="submit" id="saveEstoqueBtn" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Produto</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-wrapper" style="margin-top:16px">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Produto</th><th>Categoria</th><th>Tamanho</th><th>Qtd. Estoque</th><th>Custo Unit.</th><th>Preço Venda</th><th>Margem</th><th>Data Entrada</th><th class="text-center">Ações</th></tr>
+                    </thead>
+                    <tbody id="estoqueTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- RTAB: Compras -->
+    <div id="rtab-compras" class="rtab-content">
+        <section class="kpi-grid">
+            <div class="kpi-card other">
+                <div class="kpi-icon"><i class="fa-solid fa-bag-shopping"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Gasto em Mercadoria</span>
+                    <h2 id="kpiComprasMercadoria">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiComprasCount">0 compras no mês</span>
+                </div>
+            </div>
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-truck"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Gasto em Transporte</span>
+                    <h2 id="kpiComprasTransporte">₲ 0</h2>
+                    <span class="kpi-subtext">Frete e deslocamento</span>
+                </div>
+            </div>
+            <div class="kpi-card highlight">
+                <div class="kpi-icon"><i class="fa-solid fa-receipt"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">TOTAL INVESTIDO (Mês)</span>
+                    <h2 id="kpiComprasTotal">₲ 0</h2>
+                    <span class="kpi-subtext">Mercadoria + Transporte</span>
+                </div>
+            </div>
+        </section>
+        <main class="main-content">
+            <section class="card-box form-section">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-plus"></i> <span id="compraFormTitle">Nova Compra de Mercadoria</span></h3>
+                    <button id="cancelCompraBtn" class="btn btn-sm btn-ghost hidden">Cancelar</button>
+                </div>
+                <form id="compraForm" class="entry-form">
+                    <input type="hidden" id="compraId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="compraData">Data da Compra *</label>
+                            <input type="date" id="compraData" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="compraProduto">Produto / Descrição *</label>
+                            <input type="text" id="compraProduto" placeholder="Ex: Camisetas tamanho M" required class="form-control" list="estoqueNamesCompra">
+                            <datalist id="estoqueNamesCompra"></datalist>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="compraQtd">Quantidade Comprada</label>
+                            <input type="number" min="0" step="1" id="compraQtd" placeholder="0" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="compraCusto">Custo Total da Mercadoria (<span class="rcurrency-symbol">₲</span>) *</label>
+                            <div class="input-prefix"><span class="rcurrency-symbol">₲</span><input type="number" step="any" min="0" id="compraCusto" placeholder="0" required class="form-control"></div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="compraTransporte">Gasto com Transporte/Frete (<span class="rcurrency-symbol">₲</span>)</label>
+                            <div class="input-prefix"><span class="rcurrency-symbol">₲</span><input type="number" step="any" min="0" id="compraTransporte" placeholder="0" class="form-control"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="compraFornecedor">Fornecedor / Observação</label>
+                            <input type="text" id="compraFornecedor" placeholder="Ex: Feira do Paraguai" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="saveCompraBtn" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Salvar Compra</button>
+                    </div>
+                </form>
+            </section>
+            <section class="card-box charts-section">
+                <div class="card-header"><h3><i class="fa-solid fa-chart-column"></i> Gastos com Compras</h3></div>
+                <div class="chart-container"><canvas id="comprasChart"></canvas></div>
+            </section>
+        </main>
+        <section class="card-box table-section">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-table-list"></i> Histórico de Compras</h3>
+                    <p class="section-desc">Registros de mercadoria e frete.</p>
+                </div>
+                <button id="clearComprasBtn" class="btn btn-sm btn-danger-outline"><i class="fa-solid fa-trash-can"></i> Limpar Mês</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Data</th><th>Produto</th><th>Qtd</th><th>Custo Mercadoria</th><th>Transporte</th><th>Total</th><th>Fornecedor</th><th class="text-center">Ações</th></tr>
+                    </thead>
+                    <tbody id="comprasTableBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="3"><strong>TOTAL MÊS</strong></td>
+                            <td id="footComprasMercadoria" class="text-danger"><strong>₲ 0</strong></td>
+                            <td id="footComprasTransporte" class="text-danger"><strong>₲ 0</strong></td>
+                            <td id="footComprasTotal" class="text-danger"><strong>₲ 0</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- RTAB: Vendas -->
+    <div id="rtab-vendas" class="rtab-content">
+        <section class="kpi-grid">
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Vendas (Mês)</span>
+                    <h2 id="kpiVendasTotal">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiVendasCount">0 vendas realizadas</span>
+                </div>
+            </div>
+            <div class="kpi-card other">
+                <div class="kpi-icon"><i class="fa-solid fa-tag"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Custo das Peças Vendidas</span>
+                    <h2 id="kpiVendasCusto">₲ 0</h2>
+                    <span class="kpi-subtext">Custo de aquisição</span>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">LUCRO LÍQUIDO VENDAS</span>
+                    <h2 id="kpiVendasLucro">₲ 0</h2>
+                    <span class="kpi-subtext" id="kpiVendasMargemMedia">Margem média: 0%</span>
+                </div>
+            </div>
+        </section>
+        <main class="main-content">
+            <section class="card-box form-section">
+                <div class="card-header">
+                    <h3><i class="fa-solid fa-plus"></i> <span id="vendaFormTitle">Nova Venda</span></h3>
+                    <button id="cancelVendaBtn" class="btn btn-sm btn-ghost hidden">Cancelar</button>
+                </div>
+                <form id="vendaForm" class="entry-form">
+                    <input type="hidden" id="vendaId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="vendaData">Data da Venda *</label>
+                            <input type="date" id="vendaData" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="vendaProdutoSelect">Selecionar Peça do Estoque *</label>
+                            <select id="vendaProdutoSelect" required class="form-control">
+                                <option value="">-- Selecione uma peça em estoque --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="vendaStockInfo" class="backup-info-box hidden" style="margin-bottom:14px; background: rgba(16,185,129,.08); border-color: rgba(16,185,129,.2);">
+                        <i class="fa-solid fa-boxes-stacked" style="color: var(--accent-emerald)"></i>
+                        <span id="vendaStockInfoText">Estoque disponível: 0 unidades</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="vendaQtd">Quantidade Vendida *</label>
+                            <input type="number" min="1" step="1" id="vendaQtd" placeholder="1" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="vendaValor">Valor Total da Venda (<span class="rcurrency-symbol">₲</span>) *</label>
+                            <div class="input-prefix"><span class="rcurrency-symbol">₲</span><input type="number" step="any" min="0" id="vendaValor" placeholder="0" required class="form-control"></div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="vendaCustoRef">Custo de Referência (<span class="rcurrency-symbol">₲</span>)</label>
+                            <div class="input-prefix"><span class="rcurrency-symbol">₲</span><input type="number" step="any" min="0" id="vendaCustoRef" placeholder="Preenchido auto pelo estoque" class="form-control"></div>
+                            <small class="text-muted">Calculado (Custo Unit. × Qtd), editável.</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="vendaObs">Observação / Cliente</label>
+                            <input type="text" id="vendaObs" placeholder="Ex: Nome do cliente, local..." class="form-control">
+                        </div>
+                    </div>
+                    <div class="venda-lucro-preview" id="vendaLucroPreview">
+                        <i class="fa-solid fa-calculator"></i> Lucro estimado: <strong id="vendaLucroVal">₲ 0</strong>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="saveVendaBtn" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Registrar Venda</button>
+                    </div>
+                </form>
+            </section>
+            <section class="card-box charts-section">
+                <div class="card-header"><h3><i class="fa-solid fa-chart-column"></i> Vendas do Mês</h3></div>
+                <div class="chart-container"><canvas id="vendasChart"></canvas></div>
+            </section>
+        </main>
+        <section class="card-box table-section">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-table-list"></i> Histórico de Vendas</h3>
+                    <p class="section-desc">Todas as vendas registradas no mês.</p>
+                </div>
+                <button id="clearVendasBtn" class="btn btn-sm btn-danger-outline"><i class="fa-solid fa-trash-can"></i> Limpar Mês</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Data</th><th>Produto</th><th>Tam.</th><th>Qtd</th><th>Valor Venda</th><th>Custo Ref.</th><th>Lucro</th><th>Margem</th><th>Obs</th><th class="text-center">Ações</th></tr>
+                    </thead>
+                    <tbody id="vendasTableBody"></tbody>
+                    <tfoot>
+                        <tr class="total-row">
+                            <td colspan="4"><strong>TOTAL MÊS</strong></td>
+                            <td id="footVendasValor" class="text-success"><strong>₲ 0</strong></td>
+                            <td id="footVendasCusto" class="text-danger"><strong>₲ 0</strong></td>
+                            <td id="footVendasLucro" class="text-success"><strong>₲ 0</strong></td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- RTAB: Resumo Roupas -->
+    <div id="rtab-resumo" class="rtab-content">
+        <section class="card-box">
+            <div class="card-header"><h3><i class="fa-solid fa-scale-balanced"></i> Balanço Geral — Roupas (Mês)</h3></div>
+            <div class="summary-balance-grid">
+                <div class="balance-card plus">
+                    <span class="balance-title"><i class="fa-solid fa-money-bill-wave"></i> (+) Total de Vendas</span>
+                    <h2 id="rSumVendas">₲ 0</h2>
+                    <small>Receita bruta do mês</small>
+                </div>
+                <div class="balance-card minus">
+                    <span class="balance-title"><i class="fa-solid fa-bag-shopping"></i> (-) Custos Totais</span>
+                    <h2 id="rSumCustos">₲ 0</h2>
+                    <small id="rSumCustosDetail">Mercadoria + Transporte + Custo Peças</small>
+                </div>
+                <div class="balance-card total-final">
+                    <span class="balance-title"><i class="fa-solid fa-sack-dollar"></i> (=) LUCRO LÍQUIDO</span>
+                    <h2 id="rSumLucro">₲ 0</h2>
+                    <small id="rSumLucroSubtext">Resultado financeiro do mês</small>
+                </div>
+            </div>
+        </section>
+        <div class="main-content" style="margin-top:24px">
+            <section class="card-box">
+                <div class="card-header"><h3><i class="fa-solid fa-chart-column"></i> Vendas vs Custos vs Lucro</h3></div>
+                <div class="chart-container"><canvas id="roupasConsolidadoChart"></canvas></div>
+            </section>
+            <section class="card-box">
+                <div class="card-header"><h3><i class="fa-solid fa-pie-chart"></i> Distribuição de Custos</h3></div>
+                <div class="chart-container"><canvas id="roupasCustosChart"></canvas></div>
+            </section>
+        </div>
+    </div>
+
+    <footer class="app-footer"><p>Controle de Vendas de Roupas &bull; Dados salvos automaticamente por usuário.</p></footer>
+</div>
+
+<!-- Settings Modal (Roupas) -->
+<div id="roupasSettingsModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width:560px">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-gear"></i> Configurações — Roupas</h3>
+            <button id="closeRoupasSettingsBtn" class="close-btn">&times;</button>
+        </div>
+        <form id="roupasSettingsForm" class="modal-body">
+            <div class="settings-section-title">📧 Backup Automático por E-mail</div>
+            <div class="backup-info-box">
+                <i class="fa-solid fa-circle-info"></i>
+                O backup diário é salvo automaticamente no navegador. Para receber por e-mail, configure o <strong>EmailJS</strong> (gratuito).
+                <a href="https://www.emailjs.com" target="_blank" class="backup-link">Criar conta grátis →</a>
+            </div>
+            <div class="form-group">
+                <label for="rBackupEmail"><i class="fa-solid fa-envelope"></i> E-mail para receber backups:</label>
+                <input type="email" id="rBackupEmail" placeholder="seuemail@gmail.com" class="form-control">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="rEmailjsServiceId">EmailJS — Service ID:</label>
+                    <input type="text" id="rEmailjsServiceId" placeholder="service_xxxxxxx" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="rEmailjsTemplateId">EmailJS — Template ID:</label>
+                    <input type="text" id="rEmailjsTemplateId" placeholder="template_xxxxxxx" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="rEmailjsPublicKey">EmailJS — Public Key:</label>
+                <input type="text" id="rEmailjsPublicKey" placeholder="xxxxxxxxxxxxxxxx" class="form-control">
+            </div>
+            <div class="form-group">
+                <label><i class="fa-solid fa-code"></i> Template sugerido para o EmailJS:</label>
+                <div class="template-preview">Assunto: Backup Financeiro - {{backup_date}}<br>Corpo:<br>Olá {{from_name}},<br><br>Backup automático do dia {{backup_date}}.<br>Tipo: {{account_type}}<br><br>{{summary}}</div>
+            </div>
+            <div class="backup-actions">
+                <button type="button" id="rManualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup Agora</button>
+                <button type="button" id="rTestEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio de E-mail</button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelRoupasSettingsBtn" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
