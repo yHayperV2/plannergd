@@ -299,8 +299,8 @@ function setupAuthUI() {
         clearAuthErrors();
     };
 
-    loginForm.onsubmit = handleLogin;
-    registerForm.onsubmit = handleRegister;
+    loginForm.onsubmit = (e) => { e.preventDefault(); handleLogin(e); };
+    registerForm.onsubmit = (e) => { e.preventDefault(); handleRegister(e); };
 
     document.querySelectorAll('input[name="accountType"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -466,6 +466,9 @@ async function handleLogin(e) {
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
 
+    let loginSuccess = false;
+    let localFound = usersList.find(u => u.username === username && u.password === password);
+
     if (supabase) {
         try {
             const fakeEmail = `${username}@meuapp.local`;
@@ -473,32 +476,56 @@ async function handleLogin(e) {
                 email: fakeEmail,
                 password: password
             });
-            if (error) return showError('loginErrorMsg', 'Usuário ou senha incorretos.');
-
-            // Fetch profile
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-            if (!profile) return showError('loginErrorMsg', 'Perfil não encontrado no banco.');
-
-            authToken = data.session.access_token;
-            localStorage.setItem('uber_finance_auth_token', authToken);
-            currentUser = { name: profile.name, username: profile.username, accountType: profile.account_type };
-            localStorage.setItem('uber_finance_logged_user', JSON.stringify(currentUser));
-            document.getElementById('loginForm').reset();
-            await startSession();
-            return;
+            
+            if (!error && data && data.user) {
+                // Sucesso no Supabase!
+                const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+                
+                authToken = data.session.access_token;
+                localStorage.setItem('uber_finance_auth_token', authToken);
+                currentUser = profile 
+                    ? { name: profile.name, username: profile.username, accountType: profile.account_type }
+                    : (localFound ? { name: localFound.name, username: localFound.username, accountType: localFound.accountType } : { name: username, username, accountType: 'uber' });
+                
+                localStorage.setItem('uber_finance_logged_user', JSON.stringify(currentUser));
+                document.getElementById('loginForm').reset();
+                await startSession();
+                return;
+            } else if (localFound) {
+                // Se falhou no Supabase mas a conta existe localmente (conta antiga), vamos migrar!
+                const { data: regData, error: regError } = await supabase.auth.signUp({
+                    email: fakeEmail,
+                    password: password,
+                    options: { data: { name: localFound.name, username: localFound.username, account_type: localFound.accountType } }
+                });
+                
+                if (regData && regData.user) {
+                    await supabase.from('profiles').insert([{
+                        id: regData.user.id,
+                        name: localFound.name,
+                        username: localFound.username,
+                        account_type: localFound.accountType
+                    }]);
+                    authToken = regData.session ? regData.session.access_token : 'supabase-active';
+                    localStorage.setItem('uber_finance_auth_token', authToken);
+                }
+            }
         } catch(err) {
-            showError('loginErrorMsg', 'Erro de conexão com o Supabase.');
-            return;
+            console.error('Erro de Supabase Auth:', err);
         }
     }
 
-    // Fallback local se Supabase não configurado
-    const found = usersList.find(u => u.username === username && u.password === password);
-    if (!found) return showError('loginErrorMsg', 'Usuário ou senha incorretos.');
-    currentUser = { name: found.name, username: found.username, accountType: found.accountType };
-    localStorage.setItem('uber_finance_logged_user', JSON.stringify(currentUser));
-    document.getElementById('loginForm').reset();
-    await startSession();
+    // Se chegou aqui, ou o Supabase falhou e migramos a conta, ou o Supabase tá offline. Tenta logar local.
+    if (localFound) {
+        currentUser = { name: localFound.name, username: localFound.username, accountType: localFound.accountType };
+        localStorage.setItem('uber_finance_logged_user', JSON.stringify(currentUser));
+        document.getElementById('loginForm').reset();
+        await startSession();
+        return;
+    }
+
+    // Se não encontrou nem no Supabase nem local
+    showError('loginErrorMsg', 'Usuário ou senha incorretos.');
 }
 
 function handleLogout() {
