@@ -10,10 +10,10 @@ let authToken = localStorage.getItem('uber_finance_auth_token') || null;
 // =====================================================
 let SUPABASE_URL = localStorage.getItem('supabase_url') || 'https://fogmkzbiyukyvbidwuuo.supabase.co';
 let SUPABASE_KEY = localStorage.getItem('supabase_anon_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZ21remJpeXVreXZiaWR3dXVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4MTc0NTAsImV4cCI6MjEwMDM5MzQ1MH0.WE3FzYhgVk9Jm3EzKLP5Drw2WBl176VVk1rSu5KERFI';
-let supabase = null;
+let supabaseClient = null;
 
 if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
 window.configurarSupabase = function() {
@@ -335,16 +335,16 @@ function showError(id, msg) {
 
 // API & Cloud Database Sync (SUPABASE)
 async function syncCloudLoad() {
-    if (!supabase || !currentUser) return;
+    if (!supabaseClient || !currentUser) return;
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return;
 
         if (currentUser.accountType === 'uber') {
             const [uRes, pRes, sRes] = await Promise.all([
-                supabase.from('uber_entries').select('*'),
-                supabase.from('personal_entries').select('*'),
-                supabase.from('user_settings').select('settings_json').single()
+                supabaseClient.from('uber_entries').select('*'),
+                supabaseClient.from('personal_entries').select('*'),
+                supabaseClient.from('user_settings').select('settings_json').single()
             ]);
             
             if (uRes.data && uRes.data.length) uberEntries = uRes.data;
@@ -357,10 +357,10 @@ async function syncCloudLoad() {
             
         } else if (currentUser.accountType === 'roupas') {
             const [estRes, cmpRes, vndRes, sRes] = await Promise.all([
-                supabase.from('estoque_items').select('*'),
-                supabase.from('compras_entries').select('*'),
-                supabase.from('vendas_entries').select('*'),
-                supabase.from('user_settings').select('settings_json').single()
+                supabaseClient.from('estoque_items').select('*'),
+                supabaseClient.from('compras_entries').select('*'),
+                supabaseClient.from('vendas_entries').select('*'),
+                supabaseClient.from('user_settings').select('settings_json').single()
             ]);
 
             if (estRes.data && estRes.data.length) estoqueItems = estRes.data;
@@ -379,21 +379,21 @@ async function syncCloudLoad() {
 }
 
 async function syncCloudSave() {
-    if (!supabase || !currentUser) return;
+    if (!supabaseClient || !currentUser) return;
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return;
         const uid = user.id;
 
         if (currentUser.accountType === 'uber') {
-            if (uberEntries.length) await supabase.from('uber_entries').upsert(uberEntries.map(e => ({ ...e, user_id: uid })));
-            if (personalEntries.length) await supabase.from('personal_entries').upsert(personalEntries.map(e => ({ ...e, user_id: uid })));
-            await supabase.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings });
+            if (uberEntries.length) await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ ...e, user_id: uid })));
+            if (personalEntries.length) await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ ...e, user_id: uid })));
+            await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings });
         } else {
-            if (estoqueItems.length) await supabase.from('estoque_items').upsert(estoqueItems.map(e => ({ ...e, user_id: uid })));
-            if (comprasEntries.length) await supabase.from('compras_entries').upsert(comprasEntries.map(e => ({ ...e, user_id: uid })));
-            if (vendasEntries.length) await supabase.from('vendas_entries').upsert(vendasEntries.map(e => ({ ...e, user_id: uid })));
-            await supabase.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings });
+            if (estoqueItems.length) await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ ...e, user_id: uid })));
+            if (comprasEntries.length) await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ ...e, user_id: uid })));
+            if (vendasEntries.length) await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ ...e, user_id: uid })));
+            await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings });
         }
     } catch(err) {
         console.warn('Falha ao salvar no banco de dados da hospedagem:', err);
@@ -414,10 +414,10 @@ async function handleRegister(e) {
     if (!typeRadio) return showError('regErrorMsg', 'Selecione o tipo de conta: Uber ou Roupas.');
     if (password !== confirm) return showError('regErrorMsg', 'As senhas não coincidem.');
 
-    if (supabase) {
+    if (supabaseClient) {
         try {
             const fakeEmail = `${username}@meuapp.local`;
-            const { data, error } = await supabase.auth.signUp({
+            const { data, error } = await supabaseClient.auth.signUp({
                 email: fakeEmail,
                 password: password,
                 options: {
@@ -428,7 +428,7 @@ async function handleRegister(e) {
             
             // Supabase auth auto-logs in. Also, RLS allows this insert.
             if (data.user) {
-                await supabase.from('profiles').insert([{
+                await supabaseClient.from('profiles').insert([{
                     id: data.user.id,
                     name: name,
                     username: username,
@@ -469,10 +469,10 @@ async function handleLogin(e) {
     let loginSuccess = false;
     let localFound = usersList.find(u => u.username === username && u.password === password);
 
-    if (supabase) {
+    if (supabaseClient) {
         try {
             const fakeEmail = `${username}@meuapp.local`;
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
                 email: fakeEmail,
                 password: password
             });
@@ -485,7 +485,7 @@ async function handleLogin(e) {
 
             if (data && data.user) {
                 // Sucesso no Supabase!
-                const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', data.user.id).single();
                 
                 authToken = data.session ? data.session.access_token : 'supabase-active';
                 localStorage.setItem('uber_finance_auth_token', authToken);
@@ -499,14 +499,14 @@ async function handleLogin(e) {
                 return;
             } else if (localFound) {
                 // Se falhou no Supabase mas a conta existe localmente (conta antiga), vamos migrar!
-                const { data: regData, error: regError } = await supabase.auth.signUp({
+                const { data: regData, error: regError } = await supabaseClient.auth.signUp({
                     email: fakeEmail,
                     password: password,
                     options: { data: { name: localFound.name, username: localFound.username, account_type: localFound.accountType } }
                 });
                 
                 if (regData && regData.user) {
-                    await supabase.from('profiles').insert([{
+                    await supabaseClient.from('profiles').insert([{
                         id: regData.user.id,
                         name: localFound.name,
                         username: localFound.username,
@@ -536,7 +536,7 @@ async function handleLogin(e) {
 
 function handleLogout() {
     if (!confirm('Deseja sair do sistema?')) return;
-    if (supabase) supabase.auth.signOut();
+    if (supabaseClient) supabaseClient.auth.signOut();
     localStorage.removeItem('uber_finance_logged_user');
     localStorage.removeItem('uber_finance_auth_token');
     currentUser = null;

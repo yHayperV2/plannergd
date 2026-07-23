@@ -2,16 +2,28 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle Financeiro — Uber & Vendas de Roupas</title>
-    <meta name="description" content="Sistema de controle financeiro para motoristas Uber e vendedores de roupas no Paraguai.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Uber & Roupas - Finanças</title>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- EmailJS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert('ERRO DE SISTEMA DETECTADO:\n\n' + message + '\nLinha: ' + lineno + '\n\nPor favor, me envie uma foto desse erro!');
+            return false;
+        };
+        window.addEventListener("unhandledrejection", function(event) {
+            alert('ERRO DE PROMESSA DETECTADO:\n\n' + event.reason + '\n\nPor favor, me envie uma foto desse erro!');
+        });
+    </script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
