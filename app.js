@@ -347,8 +347,8 @@ async function syncCloudLoad() {
                 supabaseClient.from('user_settings').select('settings_json').single()
             ]);
             
-            if (uRes.data && uRes.data.length) uberEntries = uRes.data;
-            if (pRes.data && pRes.data.length) personalEntries = pRes.data;
+            if (uRes.data && uRes.data.length) uberEntries = uRes.data.map(r => ({ id: r.id, date: r.date, gross: r.gross, fuel: r.fuel, other: r.other, otherDesc: r.other_desc, km: r.km }));
+            if (pRes.data && pRes.data.length) personalEntries = pRes.data.map(r => ({ id: r.id, date: r.date, category: r.category, value: r.value, status: r.status, desc: r.description }));
             if (sRes.data && sRes.data.settings_json) uberSettings = { ...uberSettings, ...sRes.data.settings_json };
             
             localStorage.setItem(userKey('uber_finance_entries'), JSON.stringify(uberEntries));
@@ -363,9 +363,9 @@ async function syncCloudLoad() {
                 supabaseClient.from('user_settings').select('settings_json').single()
             ]);
 
-            if (estRes.data && estRes.data.length) estoqueItems = estRes.data;
-            if (cmpRes.data && cmpRes.data.length) comprasEntries = cmpRes.data;
-            if (vndRes.data && vndRes.data.length) vendasEntries = vndRes.data;
+            if (estRes.data && estRes.data.length) estoqueItems = estRes.data.map(r => ({ id: r.id, nome: r.nome, categoria: r.categoria, tamanho: r.tamanho, qtd: r.qtd, custo: r.custo, precoVenda: r.preco_venda, dataEntrada: r.data_entrada }));
+            if (cmpRes.data && cmpRes.data.length) comprasEntries = cmpRes.data.map(r => ({ id: r.id, data: r.date, produto: r.produto, qtd: r.qtd, custo: r.custo, transporte: r.transporte, fornecedor: r.fornecedor }));
+            if (vndRes.data && vndRes.data.length) vendasEntries = vndRes.data.map(r => ({ id: r.id, data: r.date, stockItemId: r.stock_item_id, produto: r.produto, tamanho: r.tamanho, qtd: r.qtd, valor: r.valor, custoRef: r.custo_ref, lucro: r.lucro, obs: r.obs }));
             if (sRes.data && sRes.data.settings_json) roupasSettings = { ...roupasSettings, ...sRes.data.settings_json };
 
             localStorage.setItem(userKey('roupas_estoque'), JSON.stringify(estoqueItems));
@@ -386,13 +386,13 @@ async function syncCloudSave() {
         const uid = user.id;
 
         if (currentUser.accountType === 'uber') {
-            if (uberEntries.length) await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ ...e, user_id: uid })));
-            if (personalEntries.length) await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ ...e, user_id: uid })));
+            if (uberEntries.length) await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, gross: e.gross, fuel: e.fuel, other: e.other, other_desc: e.otherDesc, km: e.km })));
+            if (personalEntries.length) await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, category: e.category, value: e.value, status: e.status, description: e.desc })));
             await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings });
         } else {
-            if (estoqueItems.length) await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ ...e, user_id: uid })));
-            if (comprasEntries.length) await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ ...e, user_id: uid })));
-            if (vendasEntries.length) await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ ...e, user_id: uid })));
+            if (estoqueItems.length) await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ id: e.id, user_id: uid, nome: e.nome, categoria: e.categoria, tamanho: e.tamanho, qtd: e.qtd, custo: e.custo, preco_venda: e.precoVenda, data_entrada: e.dataEntrada })));
+            if (comprasEntries.length) await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, produto: e.produto, qtd: e.qtd, custo: e.custo, transporte: e.transporte, fornecedor: e.fornecedor })));
+            if (vendasEntries.length) await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs })));
             await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings });
         }
     } catch(err) {
