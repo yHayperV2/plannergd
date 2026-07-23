@@ -68,8 +68,8 @@ const CURRENCY_CONFIG = {
     EUR: { symbol: '€', locale: 'de-DE', decimals: 2 }
 };
 
-// Default currency for roupas app (PYG)
-const ROUPAS_CURRENCY = CURRENCY_CONFIG.PYG;
+// Default currency for roupas app (BRL)
+const ROUPAS_CURRENCY = CURRENCY_CONFIG.BRL;
 
 // =====================================================
 // HELPERS
@@ -83,7 +83,7 @@ function fmt(value, currencyCode) {
     return `${cfg.symbol} ${n.toLocaleString(cfg.locale, { minimumFractionDigits: cfg.decimals, maximumFractionDigits: cfg.decimals })}`;
 }
 
-function fmtR(value) { return fmt(value, 'PYG'); }
+function fmtR(value) { return fmt(value, 'BRL'); }
 
 function dateBR(d) {
     if (!d) return '';
