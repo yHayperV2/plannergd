@@ -396,6 +396,15 @@ window.manualCloudSync = async function(btnId, timeId) {
     showToast('Sincronizado com a nuvem!', 'success');
 };
 
+async function deleteCloudItem(table, id) {
+    if (!supabaseClient || !currentUser) return;
+    try {
+        await supabaseClient.from(table).delete().eq('id', id);
+    } catch(err) {
+        console.warn('Erro ao deletar da nuvem:', err);
+    }
+}
+
 async function syncCloudSave() {
     if (!supabaseClient || !currentUser) return;
     try {
@@ -721,6 +730,8 @@ function setupUberListeners() {
     document.getElementById('clearAllBtn').onclick = () => {
         const m = document.getElementById('monthFilter').value;
         if (confirm(`Apagar lançamentos Uber de ${m}?`)) {
+            const toDel = uberEntries.filter(e => monthKey(e.date) === m);
+            toDel.forEach(e => deleteCloudItem('uber_entries', e.id));
             uberEntries = uberEntries.filter(e => monthKey(e.date) !== m);
             saveUberEntries(); populateUberMonthFilter(); renderUberApp();
         }
@@ -734,6 +745,8 @@ function setupUberListeners() {
     document.getElementById('clearPersonalMonthBtn').onclick = () => {
         const m = document.getElementById('monthFilter').value;
         if (confirm(`Apagar despesas casa de ${m}?`)) {
+            const toDel = personalEntries.filter(e => monthKey(e.date) === m);
+            toDel.forEach(e => deleteCloudItem('personal_entries', e.id));
             personalEntries = personalEntries.filter(e => monthKey(e.date) !== m);
             savePersonalEntries(); populateUberMonthFilter(); renderUberApp();
         }
@@ -971,6 +984,7 @@ window.editUber = function(id) {
 window.deleteUber = function(id) {
     if (!confirm('Excluir lançamento?')) return;
     uberEntries = uberEntries.filter(e => e.id !== id);
+    deleteCloudItem('uber_entries', id);
     saveUberEntries(); populateUberMonthFilter(); renderUberApp();
 };
 
@@ -1030,6 +1044,7 @@ window.editPersonal = function(id) {
 window.deletePersonal = function(id) {
     if (!confirm('Excluir despesa?')) return;
     personalEntries = personalEntries.filter(e => e.id !== id);
+    deleteCloudItem('personal_entries', id);
     savePersonalEntries(); populateUberMonthFilter(); renderUberApp();
 };
 
@@ -1272,6 +1287,8 @@ function setupRoupasListeners() {
     document.getElementById('clearComprasBtn').onclick = () => {
         const m = document.getElementById('roupasMonthFilter').value;
         if (confirm(`Apagar compras de ${m}?`)) {
+            const toDel = comprasEntries.filter(e => monthKey(e.data) === m);
+            toDel.forEach(e => deleteCloudItem('compras_entries', e.id));
             comprasEntries = comprasEntries.filter(e => monthKey(e.data) !== m);
             saveCompras(); populateRoupasMonthFilter(); renderRoupasApp();
         }
@@ -1283,6 +1300,8 @@ function setupRoupasListeners() {
     document.getElementById('clearVendasBtn').onclick = () => {
         const m = document.getElementById('roupasMonthFilter').value;
         if (confirm(`Apagar vendas de ${m}?`)) {
+            const toDel = vendasEntries.filter(e => monthKey(e.data) === m);
+            toDel.forEach(e => deleteCloudItem('vendas_entries', e.id));
             vendasEntries = vendasEntries.filter(e => monthKey(e.data) !== m);
             saveVendas(); populateRoupasMonthFilter(); renderRoupasApp();
         }
@@ -1529,6 +1548,7 @@ window.editEstoque = function(id) {
 window.deleteEstoque = function(id) {
     if (!confirm('Excluir este produto do estoque?')) return;
     estoqueItems = estoqueItems.filter(e => e.id !== id);
+    deleteCloudItem('estoque_items', id);
     saveEstoque(); renderRoupasApp();
 };
 
@@ -1588,6 +1608,7 @@ window.editCompra = function(id) {
 window.deleteCompra = function(id) {
     if (!confirm('Excluir esta compra?')) return;
     comprasEntries = comprasEntries.filter(e => e.id !== id);
+    deleteCloudItem('compras_entries', id);
     saveCompras(); populateRoupasMonthFilter(); renderRoupasApp();
 };
 
@@ -1709,6 +1730,7 @@ window.editVenda = function(id) {
 window.deleteVenda = function(id) {
     if (!confirm('Excluir esta venda?')) return;
     vendasEntries = vendasEntries.filter(e => e.id !== id);
+    deleteCloudItem('vendas_entries', id);
     saveVendas(); populateRoupasMonthFilter(); renderRoupasApp();
 };
 
