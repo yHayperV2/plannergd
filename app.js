@@ -378,6 +378,24 @@ async function syncCloudLoad() {
     }
 }
 
+let lastSyncTimeStr = 'Salvo';
+function updateSyncTimeUI() {
+    const uBtn = document.getElementById('uberSyncTime');
+    const rBtn = document.getElementById('roupasSyncTime');
+    if (uBtn) uBtn.textContent = lastSyncTimeStr;
+    if (rBtn) rBtn.textContent = lastSyncTimeStr;
+}
+
+window.manualCloudSync = async function(btnId, timeId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sincronizando...';
+    await syncCloudSave();
+    btn.innerHTML = `<i class="fa-solid fa-cloud-check"></i> <span id="${timeId}">${lastSyncTimeStr}</span>`;
+    showToast('Sincronizado com a nuvem!', 'success');
+};
+
 async function syncCloudSave() {
     if (!supabaseClient || !currentUser) return;
     try {
@@ -395,6 +413,9 @@ async function syncCloudSave() {
             if (vendasEntries.length) await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs })));
             await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings });
         }
+        
+        lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        updateSyncTimeUI();
     } catch(err) {
         console.warn('Falha ao salvar no banco de dados da hospedagem:', err);
     }
@@ -597,6 +618,7 @@ async function startUberSession() {
     document.getElementById('uberHeaderUserName').textContent = currentUser.name;
 
     document.getElementById('uberLogoutBtn').onclick = handleLogout;
+    document.getElementById('uberSyncBtn').onclick = () => window.manualCloudSync('uberSyncBtn', 'uberSyncTime');
 
     loadUberSettings();
     loadUberEntries();
@@ -1127,6 +1149,7 @@ async function startRoupasSession() {
     document.getElementById('roupasHeaderUserName').textContent = currentUser.name;
 
     document.getElementById('roupasLogoutBtn').onclick = handleLogout;
+    document.getElementById('roupasSyncBtn').onclick = () => window.manualCloudSync('roupasSyncBtn', 'roupasSyncTime');
 
     loadRoupasSettings();
     loadEstoque();
