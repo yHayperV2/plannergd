@@ -477,11 +477,17 @@ async function handleLogin(e) {
                 password: password
             });
             
-            if (!error && data && data.user) {
+            if (error) {
+                return showError('loginErrorMsg', error.message === 'Email not confirmed' 
+                    ? 'Erro: Confirmação de E-mail está ativada no Supabase. Desative-a nas configurações de Auth.' 
+                    : (error.message || 'Usuário ou senha incorretos.'));
+            }
+
+            if (data && data.user) {
                 // Sucesso no Supabase!
                 const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
                 
-                authToken = data.session.access_token;
+                authToken = data.session ? data.session.access_token : 'supabase-active';
                 localStorage.setItem('uber_finance_auth_token', authToken);
                 currentUser = profile 
                     ? { name: profile.name, username: profile.username, accountType: profile.account_type }
