@@ -2029,189 +2029,249 @@ function populateGraficaMonthFilter() {
     select.onchange = () => renderGraficaApp();
 }
 
-// ----- Calculators -----
+// ----- Calculators & Balcão -----
+let currentBalcaoType = 'a4';
+
 function setupGraficaCalculators() {
-    const pap = document.getElementById('calcA4Papel');
-    const aca = document.getElementById('calcA4Acabamento');
-    const qtd = document.getElementById('calcA4Qtd');
+    const btns = document.querySelectorAll('#balcaoProductTypeGrid .product-type-btn');
+    btns.forEach(btn => {
+        btn.onclick = () => {
+            btns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentBalcaoType = btn.dataset.ptype;
 
-    if (pap && aca && qtd) {
-        const updateA4 = () => {
-            const pOpt = pap.options[pap.selectedIndex];
-            const aOpt = aca.options[aca.selectedIndex];
-            const baseCost = parseFloat(pOpt.dataset.cost || 0);
-            const basePrice = parseFloat(pOpt.dataset.price || 0);
-            const mult = parseFloat(aOpt.dataset.mult || 1);
-            const q = parseInt(qtd.value) || 1;
+            document.querySelectorAll('.balcao-panel').forEach(p => p.classList.add('hidden'));
+            const activePanel = document.getElementById(`bpanel-${currentBalcaoType}`);
+            if (activePanel) activePanel.classList.remove('hidden');
 
-            const totalCost = baseCost * mult * q;
-            const totalPrice = basePrice * mult * q;
-
-            document.getElementById('calcA4CustoTotal').textContent = fmtR(totalCost);
-            document.getElementById('calcA4PrecoTotal').textContent = fmtR(totalPrice);
+            recalculateBalcaoSummary();
         };
+    });
 
-        pap.onchange = updateA4;
-        aca.onchange = updateA4;
-        qtd.oninput = updateA4;
-        updateA4();
+    const form = document.getElementById('graficaBalcaoForm');
+    if (form) {
+        form.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', recalculateBalcaoSummary);
+            el.addEventListener('change', recalculateBalcaoSummary);
+        });
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            handleBalcaoCheckoutSubmit();
+        };
     }
 
-    const mat = document.getElementById('calcPlotterMaterial');
-    const larg = document.getElementById('calcPlotterLargura');
-    const alt = document.getElementById('calcPlotterAltura');
-    const pqtd = document.getElementById('calcPlotterQtd');
+    recalculateBalcaoSummary();
+}
 
-    if (mat && larg && alt && pqtd) {
-        const updatePlotter = () => {
-            const mOpt = mat.options[mat.selectedIndex];
-            const costM2 = parseFloat(mOpt.dataset.costm2 || 0);
-            const priceM2 = parseFloat(mOpt.dataset.pricem2 || 0);
-            const w = parseFloat(larg.value || 0);
-            const h = parseFloat(alt.value || 0);
-            const q = parseInt(pqtd.value || 1);
+function recalculateBalcaoSummary() {
+    let custoTotal = 0;
+    let precoTotal = 0;
 
-            const m2One = (w * h) / 10000;
-            const totalM2 = m2One * q;
+    if (currentBalcaoType === 'a4') {
+        const cUnit = parseFloat(document.getElementById('bA4CustoUnit').value) || 0;
+        const pUnit = parseFloat(document.getElementById('bA4PrecoUnit').value) || 0;
+        const q = parseInt(document.getElementById('bA4Qtd').value) || 1;
 
-            const totalCost = totalM2 * costM2;
-            const totalPrice = totalM2 * priceM2;
+        custoTotal = cUnit * q;
+        precoTotal = pUnit * q;
+    } else if (currentBalcaoType === 'plotter') {
+        const w = parseFloat(document.getElementById('bPlotterLargura').value) || 0;
+        const h = parseFloat(document.getElementById('bPlotterAltura').value) || 0;
+        const costM2 = parseFloat(document.getElementById('bPlotterCustoM2').value) || 0;
+        const priceM2 = parseFloat(document.getElementById('bPlotterPrecoM2').value) || 0;
+        const q = parseInt(document.getElementById('bPlotterQtd').value) || 1;
 
-            document.getElementById('calcPlotterM2').textContent = `${totalM2.toFixed(2)} m²`;
-            document.getElementById('calcPlotterCustoTotal').textContent = fmtR(totalCost);
-            document.getElementById('calcPlotterPrecoTotal').textContent = fmtR(totalPrice);
-        };
-
-        mat.onchange = updatePlotter;
-        larg.oninput = updatePlotter;
-        alt.oninput = updatePlotter;
-        pqtd.oninput = updatePlotter;
-        updatePlotter();
-    }
-
-    document.getElementById('btnVenderA4').onclick = () => {
-        const pap = document.getElementById('calcA4Papel');
-        const aca = document.getElementById('calcA4Acabamento');
-        const qtd = parseInt(document.getElementById('calcA4Qtd').value) || 1;
-        const cliente = document.getElementById('calcA4Cliente').value.trim() || 'Balcão';
-
-        const pOpt = pap.options[pap.selectedIndex];
-        const aOpt = aca.options[aca.selectedIndex];
-        const mult = parseFloat(aOpt.dataset.mult || 1);
-        const custoTotal = parseFloat(pOpt.dataset.cost || 0) * mult * qtd;
-        const precoTotal = parseFloat(pOpt.dataset.price || 0) * mult * qtd;
-
-        const venda = {
-            id: Date.now().toString(),
-            data: todayISO(),
-            cliente,
-            tipoItem: 'Impressão A4',
-            produtoId: null,
-            detalhes: `${pOpt.text} (${aOpt.text})`,
-            larguraCm: 21,
-            alturaCm: 29.7,
-            m2Total: 0,
-            qtd,
-            custoTotal,
-            precoTotal,
-            lucro: precoTotal - custoTotal,
-            formaPagamento: 'PIX / Dinheiro',
-            obs: ''
-        };
-
-        graficaVendas.unshift(venda);
-        saveGraficaVendas();
-        showToast('Venda A4 registrada com sucesso!', 'success');
-        document.getElementById('calcA4Cliente').value = '';
-        renderGraficaApp();
-    };
-
-    document.getElementById('btnVenderPlotter').onclick = () => {
-        const mat = document.getElementById('calcPlotterMaterial');
-        const w = parseFloat(document.getElementById('calcPlotterLargura').value) || 100;
-        const h = parseFloat(document.getElementById('calcPlotterAltura').value) || 100;
-        const qtd = parseInt(document.getElementById('calcPlotterQtd').value) || 1;
-        const cliente = document.getElementById('calcPlotterCliente').value.trim() || 'Balcão';
-
-        const mOpt = mat.options[mat.selectedIndex];
-        const m2Total = ((w * h) / 10000) * qtd;
-        const custoTotal = m2Total * parseFloat(mOpt.dataset.costm2 || 0);
-        const precoTotal = m2Total * parseFloat(mOpt.dataset.pricem2 || 0);
-
-        const venda = {
-            id: Date.now().toString(),
-            data: todayISO(),
-            cliente,
-            tipoItem: 'Plotter Grandes Formatos',
-            produtoId: null,
-            detalhes: `${mOpt.text} (${w}x${h}cm)`,
-            larguraCm: w,
-            alturaCm: h,
-            m2Total,
-            qtd,
-            custoTotal,
-            precoTotal,
-            lucro: precoTotal - custoTotal,
-            formaPagamento: 'PIX / Dinheiro',
-            obs: ''
-        };
-
-        graficaVendas.unshift(venda);
-        saveGraficaVendas();
-        showToast('Venda Plotter registrada com sucesso!', 'success');
-        document.getElementById('calcPlotterCliente').value = '';
-        renderGraficaApp();
-    };
-
-    document.getElementById('vendaBalcaoForm').onsubmit = (e) => {
-        e.preventDefault();
-        const prodId = document.getElementById('vendaBalcaoProduto').value;
-        if (!prodId) { alert('Selecione um produto.'); return; }
-
+        const m2 = ((w * h) / 10000) * q;
+        custoTotal = m2 * costM2;
+        precoTotal = m2 * priceM2;
+    } else if (currentBalcaoType === 'panfleto') {
+        custoTotal = parseFloat(document.getElementById('bPanfletoCusto').value) || 0;
+        precoTotal = parseFloat(document.getElementById('bPanfletoPreco').value) || 0;
+    } else if (currentBalcaoType === 'cartao') {
+        custoTotal = parseFloat(document.getElementById('bCartaoCusto').value) || 0;
+        precoTotal = parseFloat(document.getElementById('bCartaoPreco').value) || 0;
+    } else if (currentBalcaoType === 'talao') {
+        custoTotal = parseFloat(document.getElementById('bTalaoCusto').value) || 0;
+        precoTotal = parseFloat(document.getElementById('bTalaoPreco').value) || 0;
+    } else if (currentBalcaoType === 'cracha') {
+        const cUnit = parseFloat(document.getElementById('bCrachaCusto').value) || 0;
+        const pUnit = parseFloat(document.getElementById('bCrachaPreco').value) || 0;
+        const q = parseInt(document.getElementById('bCrachaQtd').value) || 1;
+        custoTotal = cUnit * q;
+        precoTotal = pUnit * q;
+    } else if (currentBalcaoType === 'cardapio') {
+        const cUnit = parseFloat(document.getElementById('bCardapioCusto').value) || 0;
+        const pUnit = parseFloat(document.getElementById('bCardapioPreco').value) || 0;
+        const q = parseInt(document.getElementById('bCardapioQtd').value) || 1;
+        custoTotal = cUnit * q;
+        precoTotal = pUnit * q;
+    } else if (currentBalcaoType === 'padronizado') {
+        const prodId = document.getElementById('bPadronizadoSelect').value;
+        const q = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
         const prod = graficaProdutos.find(p => p.id === prodId);
+        if (prod) {
+            custoTotal = prod.custoUnitario * q;
+            precoTotal = prod.precoVenda * q;
+        }
+    }
+
+    const lucro = precoTotal - custoTotal;
+
+    const elCusto = document.getElementById('bSumCusto');
+    const elPreco = document.getElementById('bSumPreco');
+    const elLucro = document.getElementById('bSumLucro');
+
+    if (elCusto) elCusto.textContent = fmtR(custoTotal);
+    if (elPreco) elPreco.textContent = fmtR(precoTotal);
+    if (elLucro) {
+        elLucro.textContent = `${lucro >= 0 ? '+' : ''}${fmtR(lucro)}`;
+        elLucro.className = lucro >= 0 ? 'text-primary fs-1-1' : 'text-danger fs-1-1';
+    }
+}
+
+function handleBalcaoCheckoutSubmit() {
+    let tipoItem = '';
+    let detalhes = '';
+    let qtd = 1;
+    let larguraCm = 0;
+    let alturaCm = 0;
+    let m2Total = 0;
+    let custoTotal = 0;
+    let precoTotal = 0;
+    let produtoId = null;
+
+    if (currentBalcaoType === 'a4') {
+        tipoItem = 'Impressão A4';
+        const papel = document.getElementById('bA4Papel').value;
+        const gram = document.getElementById('bA4Gramatura').value.trim();
+        const acab = document.getElementById('bA4Acabamento').value;
+        qtd = parseInt(document.getElementById('bA4Qtd').value) || 1;
+        detalhes = `${papel} ${gram} (${acab})`;
+
+        const cUnit = parseFloat(document.getElementById('bA4CustoUnit').value) || 0;
+        const pUnit = parseFloat(document.getElementById('bA4PrecoUnit').value) || 0;
+        custoTotal = cUnit * qtd;
+        precoTotal = pUnit * qtd;
+    } else if (currentBalcaoType === 'plotter') {
+        tipoItem = 'Plotter Grandes Formatos';
+        const mat = document.getElementById('bPlotterMaterial').value;
+        larguraCm = parseFloat(document.getElementById('bPlotterLargura').value) || 100;
+        alturaCm = parseFloat(document.getElementById('bPlotterAltura').value) || 100;
+        qtd = parseInt(document.getElementById('bPlotterQtd').value) || 1;
+
+        m2Total = ((larguraCm * alturaCm) / 10000) * qtd;
+        const costM2 = parseFloat(document.getElementById('bPlotterCustoM2').value) || 0;
+        const priceM2 = parseFloat(document.getElementById('bPlotterPrecoM2').value) || 0;
+
+        custoTotal = m2Total * costM2;
+        precoTotal = m2Total * priceM2;
+        detalhes = `${mat} (${larguraCm}x${alturaCm}cm - ${m2Total.toFixed(2)}m²)`;
+    } else if (currentBalcaoType === 'panfleto') {
+        tipoItem = 'Panfleto / Folheto';
+        const tam = document.getElementById('bPanfletoTamanho').value;
+        const mat = document.getElementById('bPanfletoMaterial').value.trim();
+        const cor = document.getElementById('bPanfletoCor').value;
+        qtd = parseInt(document.getElementById('bPanfletoQtd').value) || 1000;
+
+        custoTotal = parseFloat(document.getElementById('bPanfletoCusto').value) || 0;
+        precoTotal = parseFloat(document.getElementById('bPanfletoPreco').value) || 0;
+        detalhes = `Panfleto ${tam} - ${mat} (${cor})`;
+    } else if (currentBalcaoType === 'cartao') {
+        tipoItem = 'Cartão de Visita';
+        const tam = document.getElementById('bCartaoTamanho').value;
+        const mat = document.getElementById('bCartaoMaterial').value.trim();
+        const cor = document.getElementById('bCartaoCor').value;
+        qtd = parseInt(document.getElementById('bCartaoQtd').value) || 1000;
+
+        custoTotal = parseFloat(document.getElementById('bCartaoCusto').value) || 0;
+        precoTotal = parseFloat(document.getElementById('bCartaoPreco').value) || 0;
+        detalhes = `Cartão ${tam} - ${mat} (${cor})`;
+    } else if (currentBalcaoType === 'talao') {
+        tipoItem = 'Talão / Bloco';
+        const tam = document.getElementById('bTalaoTamanho').value;
+        const mat = document.getElementById('bTalaoMaterial').value;
+        const cor = document.getElementById('bTalaoCor').value;
+        qtd = parseInt(document.getElementById('bTalaoQtd').value) || 5;
+
+        custoTotal = parseFloat(document.getElementById('bTalaoCusto').value) || 0;
+        precoTotal = parseFloat(document.getElementById('bTalaoPreco').value) || 0;
+        detalhes = `Talão ${tam} - ${mat} (${cor})`;
+    } else if (currentBalcaoType === 'cracha') {
+        tipoItem = 'Crachá PVC';
+        const tam = document.getElementById('bCrachaTamanho').value;
+        const mat = document.getElementById('bCrachaMaterial').value;
+        const cor = document.getElementById('bCrachaCor').value;
+        qtd = parseInt(document.getElementById('bCrachaQtd').value) || 1;
+
+        const cUnit = parseFloat(document.getElementById('bCrachaCusto').value) || 0;
+        const pUnit = parseFloat(document.getElementById('bCrachaPreco').value) || 0;
+        custoTotal = cUnit * qtd;
+        precoTotal = pUnit * qtd;
+        detalhes = `Crachá ${tam} - ${mat} (${cor})`;
+    } else if (currentBalcaoType === 'cardapio') {
+        tipoItem = 'Cardápio';
+        const tam = document.getElementById('bCardapioTamanho').value;
+        const mat = document.getElementById('bCardapioMaterial').value;
+        const cor = document.getElementById('bCardapioCor').value;
+        qtd = parseInt(document.getElementById('bCardapioQtd').value) || 1;
+
+        const cUnit = parseFloat(document.getElementById('bCardapioCusto').value) || 0;
+        const pUnit = parseFloat(document.getElementById('bCardapioPreco').value) || 0;
+        custoTotal = cUnit * qtd;
+        precoTotal = pUnit * qtd;
+        detalhes = `Cardápio ${tam} - ${mat} (${cor})`;
+    } else if (currentBalcaoType === 'padronizado') {
+        const pId = document.getElementById('bPadronizadoSelect').value;
+        if (!pId) { alert('Selecione um produto do catálogo.'); return; }
+        const prod = graficaProdutos.find(p => p.id === pId);
         if (!prod) return;
 
-        const qtd = parseInt(document.getElementById('vendaBalcaoQtd').value) || 1;
+        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
         if (prod.qtdEstoque < qtd) {
-            if (!confirm(`Atenção: Estoque atual (${prod.qtdEstoque}) é menor que a quantidade desejada (${qtd}). Deseja vender assim mesmo?`)) return;
+            if (!confirm(`Estoque atual (${prod.qtdEstoque}) é menor que a quantidade desejada (${qtd}). Deseja vender assim mesmo?`)) return;
         }
 
         // Deduct stock
         prod.qtdEstoque = Math.max(0, prod.qtdEstoque - qtd);
         saveGraficaProdutos();
 
-        const cliente = document.getElementById('vendaBalcaoCliente').value.trim() || 'Balcão';
-        const formaPagamento = document.getElementById('vendaBalcaoPagamento').value;
-        const obs = document.getElementById('vendaBalcaoObs').value.trim();
+        produtoId = prod.id;
+        tipoItem = 'Produto Padronizado';
+        detalhes = `${prod.nome} (${prod.medidas || ''})`;
+        custoTotal = prod.custoUnitario * qtd;
+        precoTotal = prod.precoVenda * qtd;
+    }
 
-        const custoTotal = prod.custoUnitario * qtd;
-        const precoTotal = prod.precoVenda * qtd;
+    const cliente = document.getElementById('bClienteNome').value.trim() || 'Balcão';
+    const formaPagamento = document.getElementById('bPagamentoForma').value;
+    const obs = document.getElementById('bObsDet').value.trim();
 
-        const venda = {
-            id: Date.now().toString(),
-            data: todayISO(),
-            cliente,
-            tipoItem: 'Produto Padronizado',
-            produtoId: prod.id,
-            detalhes: `${prod.nome} (${prod.medidas || ''})`,
-            larguraCm: 0,
-            alturaCm: 0,
-            m2Total: 0,
-            qtd,
-            custoTotal,
-            precoTotal,
-            lucro: precoTotal - custoTotal,
-            formaPagamento,
-            obs
-        };
-
-        graficaVendas.unshift(venda);
-        saveGraficaVendas();
-        showToast(`Venda de ${prod.nome} registrada e estoque atualizado!`, 'success');
-
-        document.getElementById('vendaBalcaoForm').reset();
-        renderGraficaApp();
+    const venda = {
+        id: Date.now().toString(),
+        data: todayISO(),
+        cliente,
+        tipoItem,
+        produtoId,
+        detalhes,
+        larguraCm,
+        alturaCm,
+        m2Total,
+        qtd,
+        custoTotal,
+        precoTotal,
+        lucro: precoTotal - custoTotal,
+        formaPagamento,
+        obs
     };
+
+    graficaVendas.unshift(venda);
+    saveGraficaVendas();
+    showToast(`Pedido de ${tipoItem} registrado com sucesso!`, 'success');
+
+    document.getElementById('bClienteNome').value = '';
+    document.getElementById('bObsDet').value = '';
+    renderGraficaApp();
 }
 
 // ----- Forms Setup -----
@@ -2408,10 +2468,10 @@ function renderGraficaApp() {
 }
 
 function populateVendaBalcaoProdutosDropdown() {
-    const select = document.getElementById('vendaBalcaoProduto');
+    const select = document.getElementById('bPadronizadoSelect');
     if (!select) return;
     const currentVal = select.value;
-    select.innerHTML = '<option value="">-- Selecione um Produto cadastrado --</option>' +
+    select.innerHTML = '<option value="">-- Selecione do Catálogo --</option>' +
         graficaProdutos.map(p => `<option value="${p.id}">${p.nome} (${p.medidas || 'Padronizado'}) - R$ ${p.precoVenda.toFixed(2)} [Estoque: ${p.qtdEstoque}]</option>`).join('');
     if (currentVal) select.value = currentVal;
 }

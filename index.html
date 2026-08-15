@@ -976,7 +976,7 @@
                 <div class="brand-icon grafica-brand"><i class="fa-solid fa-print"></i></div>
                 <div>
                     <h1>Gestão de Gráfica Rápida & Impressões</h1>
-                    <p class="subtitle">Calculadora Balcão (A4 & Plotter m²), Estoque, DRE e Finanças Pessoais</p>
+                    <p class="subtitle">Atendimento de Balcão, Impressões, Plotter m², Estoque, DRE e Finanças Pessoais</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -992,7 +992,8 @@
         </div>
         <div class="controls-bar">
             <nav class="tabs-nav" id="graficaTabsNav">
-                <button class="tab-btn active" data-gtab="gtab-balcao"><i class="fa-solid fa-calculator"></i> Balcão & Calculadora</button>
+                <button class="tab-btn active" data-gtab="gtab-balcao"><i class="fa-solid fa-cash-register"></i> Balcão & Nova Venda</button>
+                <button class="tab-btn" data-gtab="gtab-vendas-historico"><i class="fa-solid fa-list-check"></i> Histórico de Pedidos</button>
                 <button class="tab-btn" data-gtab="gtab-produtos"><i class="fa-solid fa-boxes-stacked"></i> Catálogo & Estoque</button>
                 <button class="tab-btn" data-gtab="gtab-despesas-op"><i class="fa-solid fa-gears"></i> Despesas da Loja</button>
                 <button class="tab-btn" data-gtab="gtab-dre"><i class="fa-solid fa-chart-line"></i> DRE & Métricas</button>
@@ -1005,137 +1006,402 @@
         </div>
     </header>
 
-    <!-- TAB 1: Balcão & Calculadoras de Venda Rápida -->
+    <!-- TAB 1: Balcão / Nova Venda Rápida (PDV Balcão) -->
     <div id="gtab-balcao" class="gtab-content active">
-        <div class="calc-grid">
-            <!-- Calculadora Impressão A4 -->
-            <div class="card-box calc-card">
-                <h3><i class="fa-solid fa-copy text-primary"></i> Impressão Rápida A4</h3>
-                <p class="section-desc">Precificação dinâmica por tipo de papel, quantidade e cor.</p>
-                <div class="form-group">
-                    <label for="calcA4Papel">Tipo de Papel:</label>
-                    <select id="calcA4Papel" class="form-control">
-                        <option value="sulfite" data-cost="0.08" data-price="0.30">📄 Sulfite 75g (Padrão)</option>
-                        <option value="cartao" data-cost="0.35" data-price="1.20">🃏 Papel Cartão 240g/250g</option>
-                        <option value="foto" data-cost="0.50" data-price="2.50">🖼️ Papel Fotográfico Glossy</option>
-                        <option value="adesivo" data-cost="0.60" data-price="3.00">🏷️ Papel Adesivo A4</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="calcA4Acabamento">Cor / Lados:</label>
-                        <select id="calcA4Acabamento" class="form-control">
-                            <option value="pb_frente" data-mult="1.0">Frente P/B (Preto & Branco)</option>
-                            <option value="color_frente" data-mult="1.8">Frente Colorida</option>
-                            <option value="pb_verso" data-mult="1.6">Frente e Verso P/B</option>
-                            <option value="color_verso" data-mult="3.0">Frente e Verso Colorido</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="calcA4Qtd">Qtd Cópias/Páginas:</label>
-                        <input type="number" id="calcA4Qtd" value="1" min="1" class="form-control">
-                    </div>
-                </div>
-                <div class="calc-summary-box">
-                    <div>Custo Prod.: <strong id="calcA4CustoTotal">R$ 0,08</strong></div>
-                    <div>Preço Final: <strong id="calcA4PrecoTotal" class="text-success fs-1-1">R$ 0,30</strong></div>
-                </div>
-                <div class="form-group" style="margin-top:10px;">
-                    <input type="text" id="calcA4Cliente" placeholder="Nome do Cliente (opcional)" class="form-control form-control-sm">
-                </div>
-                <button type="button" id="btnVenderA4" class="btn btn-primary btn-block"><i class="fa-solid fa-cart-plus"></i> Registrar Venda A4</button>
-            </div>
-
-            <!-- Calculadora Plotter m² -->
-            <div class="card-box calc-card">
-                <h3><i class="fa-solid fa-scroll text-accent"></i> Plotter Grandes Formatos (m²)</h3>
-                <p class="section-desc">Cálculo por largura x altura em centímetros.</p>
-                <div class="form-group">
-                    <label for="calcPlotterMaterial">Material / Mídia:</label>
-                    <select id="calcPlotterMaterial" class="form-control">
-                        <option value="vinil" data-costm2="18.00" data-pricem2="55.00">🎨 Adesivo Vinil Promocional (m²)</option>
-                        <option value="lona" data-costm2="15.00" data-pricem2="48.00">🚩 Lona Banner 440g (m²)</option>
-                        <option value="foto_plotter" data-costm2="30.00" data-pricem2="90.00">🖼️ Papel Fotográfico Plotter (m²)</option>
-                        <option value="transparente" data-costm2="25.00" data-pricem2="75.00">✨ Vinil Transparente / Backlit (m²)</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="calcPlotterLargura">Largura (cm):</label>
-                        <input type="number" id="calcPlotterLargura" placeholder="Ex: 100" value="100" min="1" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="calcPlotterAltura">Altura (cm):</label>
-                        <input type="number" id="calcPlotterAltura" placeholder="Ex: 100" value="100" min="1" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="calcPlotterQtd">Qtd Unid.:</label>
-                        <input type="number" id="calcPlotterQtd" value="1" min="1" class="form-control">
-                    </div>
-                </div>
-                <div class="calc-summary-box">
-                    <div>Área: <strong id="calcPlotterM2">1.00 m²</strong> | Custo: <strong id="calcPlotterCustoTotal">R$ 18,00</strong></div>
-                    <div>Preço Final: <strong id="calcPlotterPrecoTotal" class="text-success fs-1-1">R$ 55,00</strong></div>
-                </div>
-                <div class="form-group" style="margin-top:10px;">
-                    <input type="text" id="calcPlotterCliente" placeholder="Nome do Cliente (opcional)" class="form-control form-control-sm">
-                </div>
-                <button type="button" id="btnVenderPlotter" class="btn btn-primary btn-block"><i class="fa-solid fa-cart-plus"></i> Registrar Venda Plotter</button>
-            </div>
-        </div>
-
-        <!-- Venda Rápida de Produtos do Estoque -->
         <section class="card-box">
-            <div class="card-header table-header-flex">
+            <div class="card-header">
                 <div>
-                    <h3><i class="fa-solid fa-basket-shopping"></i> Venda de Produtos Padronizados do Estoque</h3>
-                    <p class="section-desc">Cartões de visita, panfletos, ímãs e talões com baixa automática no estoque.</p>
+                    <h3><i class="fa-solid fa-cash-register text-primary"></i> Atendimento de Balcão — Escolha o Produto</h3>
+                    <p class="section-desc">Selecione o tipo de serviço abaixo para abrir as opções e efetuar o orçamento/venda.</p>
                 </div>
             </div>
-            <form id="vendaBalcaoForm" class="entry-form">
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;">
-                        <label for="vendaBalcaoProduto">Selecione o Produto *</label>
-                        <select id="vendaBalcaoProduto" class="form-control" required>
-                            <option value="">-- Selecione um Produto cadastrado --</option>
-                        </select>
+
+            <!-- Seletor de Tipo de Produto em Botões/Grid -->
+            <div class="product-type-grid" id="balcaoProductTypeGrid">
+                <button type="button" class="product-type-btn active" data-ptype="a4">
+                    <i class="fa-solid fa-copy"></i>
+                    <span>Impressão A4</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="plotter">
+                    <i class="fa-solid fa-scroll"></i>
+                    <span>Plotter (m²)</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="panfleto">
+                    <i class="fa-solid fa-newspaper"></i>
+                    <span>Panfletos</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="cartao">
+                    <i class="fa-solid fa-address-card"></i>
+                    <span>Cartões de Visita</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="talao">
+                    <i class="fa-solid fa-book"></i>
+                    <span>Talões & Blocos</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="cracha">
+                    <i class="fa-solid fa-id-badge"></i>
+                    <span>Crachás PVC</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="cardapio">
+                    <i class="fa-solid fa-utensils"></i>
+                    <span>Cardápios</span>
+                </button>
+                <button type="button" class="product-type-btn" data-ptype="padronizado">
+                    <i class="fa-solid fa-boxes-packing"></i>
+                    <span>Estoque / Outros</span>
+                </button>
+            </div>
+
+            <form id="graficaBalcaoForm" class="entry-form style-balcao-form">
+                <!-- PANEL: IMPRESSÃO A4 -->
+                <div class="balcao-panel" id="bpanel-a4">
+                    <h4><i class="fa-solid fa-copy"></i> Configuração — Impressão A4</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bA4Papel">Tipo de Papel:</label>
+                            <select id="bA4Papel" class="form-control">
+                                <option value="Sulfite" data-cost="0.08" data-price="0.30">📄 Sulfite</option>
+                                <option value="Papel Cartão" data-cost="0.35" data-price="1.20">🃏 Papel Cartão</option>
+                                <option value="Papel Fotográfico" data-cost="0.50" data-price="2.50">🖼️ Papel Fotográfico</option>
+                                <option value="Papel Adesivo" data-cost="0.60" data-price="3.00">🏷️ Papel Adesivo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bA4Gramatura">Gramatura (ex: 75g, 180g, 240g):</label>
+                            <input type="text" id="bA4Gramatura" value="75g" placeholder="Ex: 75g, 180g" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bA4Acabamento">Cor / Impressão:</label>
+                            <select id="bA4Acabamento" class="form-control">
+                                <option value="Frente P/B" data-mult="1.0">Frente P/B (Preto & Branco)</option>
+                                <option value="Frente Colorida" data-mult="1.8">Frente Colorida</option>
+                                <option value="Frente e Verso P/B" data-mult="1.6">Frente e Verso P/B</option>
+                                <option value="Frente e Verso Colorido" data-mult="3.0">Frente e Verso Colorido</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="vendaBalcaoQtd">Quantidade *</label>
-                        <input type="number" id="vendaBalcaoQtd" value="1" min="1" required class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="vendaBalcaoCliente">Cliente</label>
-                        <input type="text" id="vendaBalcaoCliente" placeholder="Ex: Maria Santos" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="vendaBalcaoPagamento">Forma de Pagamento</label>
-                        <select id="vendaBalcaoPagamento" class="form-control">
-                            <option value="PIX">⚡ PIX</option>
-                            <option value="Dinheiro">💵 Dinheiro</option>
-                            <option value="Cartão de Crédito">💳 Cartão de Crédito</option>
-                            <option value="Cartão de Débito">💳 Cartão de Débito</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bA4CustoUnit">Custo Unitário (R$):</label>
+                            <input type="number" step="0.01" id="bA4CustoUnit" value="0.08" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bA4PrecoUnit">Preço Unitário de Venda (R$):</label>
+                            <input type="number" step="0.01" id="bA4PrecoUnit" value="0.30" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bA4Qtd">Qtd Cópias / Páginas:</label>
+                            <input type="number" id="bA4Qtd" value="1" min="1" class="form-control">
+                        </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label for="vendaBalcaoObs">Observações / Detalhes</label>
-                        <input type="text" id="vendaBalcaoObs" placeholder="Ex: Arte enviada pelo cliente" class="form-control">
+
+                <!-- PANEL: PLOTTER (GRANDES FORMATOS) -->
+                <div class="balcao-panel hidden" id="bpanel-plotter">
+                    <h4><i class="fa-solid fa-scroll"></i> Configuração — Plotter (Grandes Formatos m²)</h4>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2;">
+                            <label for="bPlotterMaterial">Material / Mídia:</label>
+                            <select id="bPlotterMaterial" class="form-control">
+                                <option value="Adesivo Vinil Branco" data-costm2="18.00" data-pricem2="55.00">🎨 Adesivo Vinil Branco</option>
+                                <option value="Adesivo Vinil Transparente" data-costm2="25.00" data-pricem2="75.00">✨ Adesivo Vinil Transparente</option>
+                                <option value="Adesivo Vinil Blackout" data-costm2="22.00" data-pricem2="68.00">⬛ Adesivo Vinil Blackout</option>
+                                <option value="Lona" data-costm2="15.00" data-pricem2="48.00">🚩 Lona Banner 440g</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bPlotterLargura">Largura (cm):</label>
+                            <input type="number" id="bPlotterLargura" placeholder="100" value="100" min="1" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPlotterAltura">Altura (cm):</label>
+                            <input type="number" id="bPlotterAltura" placeholder="100" value="100" min="1" class="form-control">
+                        </div>
                     </div>
-                    <div class="form-group" style="min-width:180px; display:flex; align-items:flex-end;">
-                        <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-check"></i> Finalizar Venda</button>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bPlotterCustoM2">Custo por m² (R$):</label>
+                            <input type="number" step="0.01" id="bPlotterCustoM2" value="18.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPlotterPrecoM2">Preço Venda por m² (R$):</label>
+                            <input type="number" step="0.01" id="bPlotterPrecoM2" value="55.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPlotterQtd">Qtd Unidades:</label>
+                            <input type="number" id="bPlotterQtd" value="1" min="1" class="form-control">
+                        </div>
                     </div>
+                </div>
+
+                <!-- PANEL: PANFLETO -->
+                <div class="balcao-panel hidden" id="bpanel-panfleto">
+                    <h4><i class="fa-solid fa-newspaper"></i> Configuração — Panfletos / Folhetos</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bPanfletoTamanho">Tamanho:</label>
+                            <select id="bPanfletoTamanho" class="form-control">
+                                <option value="10x14cm">10x14 cm</option>
+                                <option value="10x15cm">10x15 cm</option>
+                                <option value="10x21cm">10x21 cm</option>
+                                <option value="14x20cm">14x20 cm</option>
+                                <option value="15x21cm">15x21 cm</option>
+                                <option value="20x21cm">20x21 cm</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bPanfletoMaterial">Material:</label>
+                            <input type="text" id="bPanfletoMaterial" value="Couchê 150g" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPanfletoCor">Impressão / Cores:</label>
+                            <select id="bPanfletoCor" class="form-control">
+                                <option value="4x0">4x0 (Frente Colorida)</option>
+                                <option value="4x1">4x1 (Frente Colorida / Verso P/B)</option>
+                                <option value="4x4">4x4 (Frente e Verso Colorido)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bPanfletoCusto">Custo Total da Tiragem (R$):</label>
+                            <input type="number" step="0.01" id="bPanfletoCusto" value="45.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPanfletoPreco">Preço Venda Total (R$):</label>
+                            <input type="number" step="0.01" id="bPanfletoPreco" value="120.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPanfletoQtd">Qtd (Ex: 1000 panfletos):</label>
+                            <input type="number" id="bPanfletoQtd" value="1000" min="1" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL: CARTÃO DE VISITA -->
+                <div class="balcao-panel hidden" id="bpanel-cartao">
+                    <h4><i class="fa-solid fa-address-card"></i> Configuração — Cartões de Visita</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bCartaoTamanho">Tamanho:</label>
+                            <select id="bCartaoTamanho" class="form-control">
+                                <option value="9x4cm">9x4 cm</option>
+                                <option value="9x5cm">9x5 cm</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bCartaoMaterial">Material:</label>
+                            <input type="text" id="bCartaoMaterial" value="Couchê 250g" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCartaoCor">Impressão / Cores:</label>
+                            <select id="bCartaoCor" class="form-control">
+                                <option value="4x0">4x0 (Frente Colorida)</option>
+                                <option value="4x1">4x1 (Frente Colorida / Verso P/B)</option>
+                                <option value="4x4">4x4 (Frente e Verso Colorido)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bCartaoCusto">Custo Total (R$):</label>
+                            <input type="number" step="0.01" id="bCartaoCusto" value="25.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCartaoPreco">Preço Venda Total (R$):</label>
+                            <input type="number" step="0.01" id="bCartaoPreco" value="70.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCartaoQtd">Qtd Unidades (ex: 500, 1000):</label>
+                            <input type="number" id="bCartaoQtd" value="1000" min="1" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL: TALÃO / BLOCO -->
+                <div class="balcao-panel hidden" id="bpanel-talao">
+                    <h4><i class="fa-solid fa-book"></i> Configuração — Talões & Blocos</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bTalaoTamanho">Tamanho:</label>
+                            <select id="bTalaoTamanho" class="form-control">
+                                <option value="10x14cm">10x14 cm</option>
+                                <option value="10x15cm">10x15 cm</option>
+                                <option value="10x21cm">10x21 cm</option>
+                                <option value="14x20cm">14x20 cm</option>
+                                <option value="15x21cm">15x21 cm</option>
+                                <option value="20x21cm">20x21 cm</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bTalaoMaterial">Material:</label>
+                            <select id="bTalaoMaterial" class="form-control">
+                                <option value="Sulfite">📄 Sulfite</option>
+                                <option value="Sulfite + Copiativo">📝 Sulfite + Copiativo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bTalaoCor">Impressão / Cores:</label>
+                            <select id="bTalaoCor" class="form-control">
+                                <option value="4x0">4x0 (Frente Colorida)</option>
+                                <option value="4x1">4x1 (Frente Colorida / Verso P/B)</option>
+                                <option value="4x4">4x4 (Frente e Verso Colorido)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bTalaoCusto">Custo Total (R$):</label>
+                            <input type="number" step="0.01" id="bTalaoCusto" value="30.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bTalaoPreco">Preço Venda Total (R$):</label>
+                            <input type="number" step="0.01" id="bTalaoPreco" value="85.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bTalaoQtd">Qtd Talões / Blocos:</label>
+                            <input type="number" id="bTalaoQtd" value="5" min="1" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL: CRACHÁ -->
+                <div class="balcao-panel hidden" id="bpanel-cracha">
+                    <h4><i class="fa-solid fa-id-badge"></i> Configuração — Crachá PVC</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bCrachaTamanho">Tamanho:</label>
+                            <input type="text" id="bCrachaTamanho" value="9x4 cm" readonly class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCrachaMaterial">Material:</label>
+                            <input type="text" id="bCrachaMaterial" value="PVC 0.76mm" readonly class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCrachaCor">Impressão / Cores:</label>
+                            <select id="bCrachaCor" class="form-control">
+                                <option value="4x0">4x0 (Frente Colorida)</option>
+                                <option value="4x4">4x4 (Frente e Verso Colorido)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bCrachaCusto">Custo Unitário (R$):</label>
+                            <input type="number" step="0.01" id="bCrachaCusto" value="4.50" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCrachaPreco">Preço Unitário Venda (R$):</label>
+                            <input type="number" step="0.01" id="bCrachaPreco" value="18.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCrachaQtd">Qtd Crachás:</label>
+                            <input type="number" id="bCrachaQtd" value="1" min="1" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL: CARDÁPIO -->
+                <div class="balcao-panel hidden" id="bpanel-cardapio">
+                    <h4><i class="fa-solid fa-utensils"></i> Configuração — Cardápios</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bCardapioTamanho">Tamanho:</label>
+                            <input type="text" id="bCardapioTamanho" value="A4" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCardapioMaterial">Material:</label>
+                            <select id="bCardapioMaterial" class="form-control">
+                                <option value="Sulfite">📄 Sulfite</option>
+                                <option value="Cartão">🃏 Papel Cartão</option>
+                                <option value="PVC">💳 PVC / Plastificado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bCardapioCor">Impressão / Cores:</label>
+                            <select id="bCardapioCor" class="form-control">
+                                <option value="4x0">4x0 (Frente Colorida)</option>
+                                <option value="4x1">4x1 (Frente Colorida / Verso P/B)</option>
+                                <option value="4x4">4x4 (Frente e Verso Colorido)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bCardapioCusto">Custo Unitário (R$):</label>
+                            <input type="number" step="0.01" id="bCardapioCusto" value="2.50" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCardapioPreco">Preço Unitário Venda (R$):</label>
+                            <input type="number" step="0.01" id="bCardapioPreco" value="12.00" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bCardapioQtd">Qtd Cardápios:</label>
+                            <input type="number" id="bCardapioQtd" value="1" min="1" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL: ESTOQUE / PADRONIZADO -->
+                <div class="balcao-panel hidden" id="bpanel-padronizado">
+                    <h4><i class="fa-solid fa-boxes-packing"></i> Seleção de Produto Cadastrado no Estoque</h4>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2;">
+                            <label for="bPadronizadoSelect">Selecione o Produto *</label>
+                            <select id="bPadronizadoSelect" class="form-control">
+                                <option value="">-- Selecione do Catálogo --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bPadronizadoQtd">Quantidade *</label>
+                            <input type="number" id="bPadronizadoQtd" value="1" min="1" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CAIXA COMPARTILHADA DE CHECKOUT / FINALIZAÇÃO -->
+                <div class="balcao-checkout-box">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="bClienteNome"><i class="fa-solid fa-user"></i> Nome do Cliente:</label>
+                            <input type="text" id="bClienteNome" placeholder="Ex: João Silva (opcional)" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPagamentoForma"><i class="fa-solid fa-money-bill-wave"></i> Forma de Pagamento:</label>
+                            <select id="bPagamentoForma" class="form-control">
+                                <option value="PIX">⚡ PIX</option>
+                                <option value="Dinheiro">💵 Dinheiro</option>
+                                <option value="Cartão de Crédito">💳 Cartão de Crédito</option>
+                                <option value="Cartão de Débito">💳 Cartão de Débito</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1.5;">
+                            <label for="bObsDet"><i class="fa-solid fa-file-lines"></i> Observações / Arte:</label>
+                            <input type="text" id="bObsDet" placeholder="Ex: Enviar prova por WhatsApp" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="calc-summary-box style-checkout-summary">
+                        <div>Custo Total: <strong id="bSumCusto" class="text-danger">R$ 0,00</strong></div>
+                        <div>Preço Venda: <strong id="bSumPreco" class="text-success fs-1-1">R$ 0,00</strong></div>
+                        <div>Lucro Previsto: <strong id="bSumLucro" class="text-primary fs-1-1">+R$ 0,00</strong></div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:10px;">
+                        <i class="fa-solid fa-cart-shopping"></i> Finalizar & Registrar Pedido de Balcão
+                    </button>
                 </div>
             </form>
         </section>
+    </div>
 
-        <!-- Histórico de Vendas / Pedidos da Gráfica -->
-        <section class="card-box">
+    <!-- TAB 2: Histórico de Vendas e Pedidos (Aba Separada) -->
+    <div id="gtab-vendas-historico" class="gtab-content">
+        <section class="card-box" style="margin-top:0">
             <div class="card-header table-header-flex">
                 <div>
-                    <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Pedidos & Vendas da Gráfica</h3>
-                    <p class="section-desc">Registro detalhado de serviços prestados no período.</p>
+                    <h3><i class="fa-solid fa-list-check"></i> Histórico de Pedidos & Vendas da Gráfica</h3>
+                    <p class="section-desc">Registro completo de todos os serviços e produtos vendidos no período selecionado.</p>
                 </div>
             </div>
             <div class="table-responsive">
@@ -1603,6 +1869,6 @@
 <!-- Toast Notification Container -->
 <div id="toastContainer" class="toast-container"></div>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
