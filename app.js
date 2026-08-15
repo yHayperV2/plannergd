@@ -2135,228 +2135,283 @@ function setupGraficaCalculators() {
     recalculateBalcaoSummary();
 }
 
-let currentW2pProd = null;
-let currentW2pQtd = null;
-
-window.populateW2PProdutoDropdown = function() {
-    const select = document.getElementById('w2pProduto');
-    if (!select) return;
-    const currentVal = select.value;
-    
-    // Filtra produtos para pegar apenas os únicos pelo baseName ou nome
-    const uniqueBases = [];
-    graficaProdutos.forEach(p => {
-        const n = p.baseName || p.nome;
-        if (!uniqueBases.find(x => x.n === n)) {
-            uniqueBases.push({ n, id: p.id, original: p });
+const pdvCatalog = [
+    // Grupo A: Tiragem Fixa
+    {
+        id: 'panfleto',
+        name: 'Panfleto / Folheto',
+        icon: 'fa-file-lines',
+        group: 'A',
+        papel: ['Couchê 150g'],
+        tamanhos: ['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'],
+        cores: ['4x0', '4x1', '4x4'],
+        tiragens: [1000, 2500, 5000, 10000],
+        calcPrice: (tamanho, papel, cor, tiragem) => {
+            const tBase = tamanho.includes('20') ? 2 : 1;
+            const cBase = cor === '4x4' ? 1.5 : (cor === '4x1' ? 1.2 : 1);
+            const tiragemBase = { 1000: 90, 2500: 160, 5000: 250, 10000: 400 };
+            return (tiragemBase[tiragem] || 90) * tBase * cBase;
         }
-    });
-
-    select.innerHTML = '<option value="">-- Selecione --</option>' +
-        uniqueBases.map(p => `<option value="${p.id}">${p.n}</option>`).join('');
-    
-    if (currentVal) select.value = currentVal;
-};
-
-window.w2pHandleChange = function(field) {
-    const pId = document.getElementById('w2pProduto').value;
-    const prod = graficaProdutos.find(p => p.id === pId);
-    
-    // Resets
-    document.getElementById('w2pGridArea').style.display = 'none';
-    document.getElementById('w2pPlotterFields').style.display = 'none';
-    document.getElementById('w2pA4Fields').style.display = 'none';
-    currentW2pProd = null;
-    currentW2pQtd = null;
-
-    if (!prod) return;
-
-    if (prod.tipoCalculo === 'matriz') {
-        currentW2pProd = prod;
-        // In a real cascading scenario, we would filter available options based on selected material, etc.
-        // For this mock, we just populate the fields from the single matched product.
-        document.getElementById('w2pMaterial').innerHTML = `<option value="${prod.material}">${prod.material}</option>`;
-        document.getElementById('w2pCor').innerHTML = `<option value="${prod.cor}">${prod.cor}</option>`;
-        document.getElementById('w2pCobertura').innerHTML = `<option value="${prod.cobertura}">${prod.cobertura}</option>`;
-        document.getElementById('w2pTamanho').innerHTML = `<option value="${prod.tamanho}">${prod.tamanho}</option>`;
-        document.getElementById('w2pAcabamento').innerHTML = `<option value="${prod.acabamentoIncluso}">${prod.acabamentoIncluso}</option>`;
-        
-        ['Material', 'Cor', 'Cobertura', 'Tamanho', 'Acabamento'].forEach(id => {
-            document.getElementById('w2p' + id).disabled = false;
-        });
-
-        // Populate Grid
-        const grid = document.getElementById('w2pQtdGrid');
-        grid.innerHTML = '';
-        if (prod.precosLote) {
-            Object.keys(prod.precosLote).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(qtd => {
-                const prc = prod.precosLote[qtd].preco;
-                grid.innerHTML += `
-                    <label style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--border-color); border-radius:6px; cursor:pointer; align-items:center;">
-                        <span><input type="radio" name="w2pLote" value="${qtd}" onchange="window.w2pSelectLote('${qtd}')"> ${parseInt(qtd).toLocaleString('pt-BR')}</span>
-                        <strong style="color:var(--accent-rose);">R$ ${prc.toFixed(2).replace('.',',')}</strong>
-                    </label>
-                `;
-            });
+    },
+    {
+        id: 'cartao',
+        name: 'Cartão de Visita',
+        icon: 'fa-address-card',
+        group: 'A',
+        papel: ['Couchê 250g'],
+        tamanhos: ['9x4cm'],
+        cores: ['4x0', '4x1', '4x4'],
+        tiragens: [1000, 2500, 5000, 10000],
+        calcPrice: (tamanho, papel, cor, tiragem) => {
+            const cBase = cor === '4x4' ? 1.5 : (cor === '4x1' ? 1.2 : 1);
+            const tiragemBase = { 1000: 45, 2500: 90, 5000: 150, 10000: 250 };
+            return (tiragemBase[tiragem] || 45) * cBase;
         }
-        
-        document.getElementById('w2pGridArea').style.display = 'block';
-
-    } else if (prod.tipoCalculo === 'm2' || prod.categoria.includes('Plotter')) {
-        currentW2pProd = prod;
-        document.getElementById('w2pPlotterFields').style.display = 'flex';
-        document.getElementById('w2pGridArea').style.display = 'block';
-        document.getElementById('w2pQtdColumn').style.display = 'none'; // Hide grid, use manual qtd
-    } else {
-        currentW2pProd = prod;
-        document.getElementById('w2pA4Fields').style.display = 'flex';
-        document.getElementById('w2pGridArea').style.display = 'block';
-        document.getElementById('w2pQtdColumn').style.display = 'none';
+    },
+    {
+        id: 'talao',
+        name: 'Talão / Receituário',
+        icon: 'fa-receipt',
+        group: 'A',
+        papel: ['Sulfite Simples', 'Sulfite + Copiativo'],
+        tamanhos: ['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'],
+        cores: ['4x0', '4x1', '4x4'],
+        tiragens: [1000, 2500, 5000, 10000],
+        calcPrice: (tamanho, papel, cor, tiragem) => {
+            const tBase = tamanho.includes('20') ? 2 : 1;
+            const pBase = papel.includes('Copiativo') ? 1.8 : 1;
+            const cBase = cor === '4x4' ? 1.5 : 1;
+            const tiragemBase = { 1000: 100, 2500: 200, 5000: 350, 10000: 600 };
+            return (tiragemBase[tiragem] || 100) * tBase * pBase * cBase;
+        }
+    },
+    // Grupo B: Unidade
+    {
+        id: 'cracha',
+        name: 'Crachá PVC',
+        icon: 'fa-id-badge',
+        group: 'B',
+        papel: ['PVC 0.76mm'],
+        tamanhos: ['9x4cm'],
+        cores: ['4x0', '4x4'],
+        calcPrice: (tamanho, papel, cor, qtd) => {
+            const cBase = cor === '4x4' ? 8 : 5;
+            return cBase * qtd;
+        }
+    },
+    {
+        id: 'cardapio',
+        name: 'Cardápio',
+        icon: 'fa-book-open',
+        group: 'B',
+        papel: ['Sulfite', 'Cartão', 'PVC'],
+        tamanhos: ['A4'],
+        cores: ['4x0', '4x1', '4x4'],
+        calcPrice: (tamanho, papel, cor, qtd) => {
+            let pBase = 2;
+            if(papel === 'Cartão') pBase = 5;
+            if(papel === 'PVC') pBase = 15;
+            const cBase = cor === '4x4' ? 1.5 : (cor === '4x1' ? 1.2 : 1);
+            return (pBase * cBase) * qtd;
+        }
+    },
+    // Grupo C: M²
+    {
+        id: 'lona',
+        name: 'Lona',
+        icon: 'fa-scroll',
+        group: 'C',
+        papel: ['Lona Brilho', 'Lona Fosca'],
+        precoM2: 45,
+        calcPrice: (l, a, precoM2, qtd) => (l * a * precoM2) * qtd
+    },
+    {
+        id: 'adesivo',
+        name: 'Adesivo Vinil',
+        icon: 'fa-note-sticky',
+        group: 'C',
+        papel: ['Branco', 'Transparente', 'Blackout'],
+        precoM2: 55,
+        calcPrice: (l, a, precoM2, qtd) => (l * a * precoM2) * qtd
     }
+];
 
-    w2pRecalculate();
+let pdvCurrentProduct = null;
+let pdvCurrentConfig = {};
+let pdvCurrentSubtotal = 0;
+
+window.renderCategoryGrid = function() {
+    const grid = document.getElementById('categoryGrid');
+    if(!grid) return;
+    grid.innerHTML = pdvCatalog.map(p => `
+        <button type="button" onclick="selectProduct('${p.id}')" class="bg-slate-800 hover:bg-brand-600 border border-slate-700 hover:border-brand-500 rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all group cursor-pointer text-white">
+            <i class="fa-solid ${p.icon} text-3xl text-slate-400 group-hover:text-white transition-colors"></i>
+            <span class="text-sm font-semibold text-slate-300 group-hover:text-white text-center">${p.name}</span>
+        </button>
+    `).join('');
 };
 
-window.w2pSelectLote = function(qtd) {
-    currentW2pQtd = qtd;
-    w2pRecalculate();
+window.selectProduct = function(id) {
+    pdvCurrentProduct = pdvCatalog.find(p => p.id === id);
+    pdvCurrentConfig = {
+        tamanho: pdvCurrentProduct.tamanhos ? pdvCurrentProduct.tamanhos[0] : null,
+        papel: pdvCurrentProduct.papel ? pdvCurrentProduct.papel[0] : null,
+        cor: pdvCurrentProduct.cores ? pdvCurrentProduct.cores[0] : null,
+        tiragem: pdvCurrentProduct.tiragens ? pdvCurrentProduct.tiragens[0] : null,
+        qtd: 1, largura: '', altura: '', obs: ''
+    };
+
+    document.getElementById('configCategory').innerText = `Grupo ${pdvCurrentProduct.group}`;
+    document.getElementById('configTitle').innerText = pdvCurrentProduct.name;
+    document.getElementById('itemObs').value = '';
+
+    document.getElementById('emptyConfigurator').classList.add('hidden');
+    document.getElementById('configuratorWrapper').classList.remove('hidden');
+
+    renderDynamicForm();
+    recalculateConfig();
 };
 
-window.w2pRecalculate = function() {
-    if (!currentW2pProd) return;
-    
-    let basePreco = 0;
-    let baseCusto = 0;
+window.resetConfigurator = function() {
+    pdvCurrentProduct = null;
+    document.getElementById('configuratorWrapper').classList.add('hidden');
+    document.getElementById('emptyConfigurator').classList.remove('hidden');
+};
 
-    if (currentW2pProd.tipoCalculo === 'matriz' && currentW2pQtd && currentW2pProd.precosLote[currentW2pQtd]) {
-        basePreco = currentW2pProd.precosLote[currentW2pQtd].preco;
-        baseCusto = currentW2pProd.precosLote[currentW2pQtd].custo;
-    } else if (currentW2pProd.tipoCalculo === 'm2' || currentW2pProd.categoria.includes('Plotter')) {
-        const l = parseFloat(document.getElementById('w2pPlotterLargura').value) || 0;
-        const a = parseFloat(document.getElementById('w2pPlotterAltura').value) || 0;
-        const q = parseInt(document.getElementById('w2pPlotterQtd').value) || 1;
-        const m2 = (l * a) / 10000;
-        basePreco = currentW2pProd.precoVenda * m2 * q;
-        baseCusto = currentW2pProd.custoUnitario * m2 * q;
-    } else {
-        const q = parseInt(document.getElementById('w2pA4Qtd').value) || 1;
-        basePreco = currentW2pProd.precoVenda * q;
-        baseCusto = currentW2pProd.custoUnitario * q;
+window.renderDynamicForm = function() {
+    const container = document.getElementById('dynamicFormFields');
+    if(!container) return;
+    let html = '';
+
+    const createSelect = (label, key, options) => `
+        <div class="space-y-1">
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">${label}</label>
+            <select class="w-full bg-slate-800 rounded-lg p-3 text-sm text-white border border-slate-700 outline-none focus:ring-2 focus:ring-brand-500" 
+                    onchange="updateConfig('${key}', this.value)">
+                ${options.map(o => `<option value="${o}" ${pdvCurrentConfig[key] == o ? 'selected' : ''}>${o}</option>`).join('')}
+            </select>
+        </div>
+    `;
+
+    if (pdvCurrentProduct.group === 'A') {
+        html += createSelect('Tamanho', 'tamanho', pdvCurrentProduct.tamanhos);
+        html += createSelect('Material / Papel', 'papel', pdvCurrentProduct.papel);
+        html += createSelect('Cores', 'cor', pdvCurrentProduct.cores);
+        html += createSelect('Tiragem (Qtd)', 'tiragem', pdvCurrentProduct.tiragens);
+    } 
+    else if (pdvCurrentProduct.group === 'B') {
+        html += createSelect('Tamanho', 'tamanho', pdvCurrentProduct.tamanhos);
+        html += createSelect('Material / Papel', 'papel', pdvCurrentProduct.papel);
+        html += createSelect('Cores', 'cor', pdvCurrentProduct.cores);
+        html += `
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Quantidade</label>
+                <input type="number" min="1" value="${pdvCurrentConfig.qtd}" 
+                       oninput="updateConfig('qtd', this.value)"
+                       class="w-full bg-slate-800 rounded-lg p-3 text-sm text-white border border-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+        `;
     }
-
-    // Opcionais
-    let opsVal = 0;
-    document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]:checked').forEach(cb => {
-        opsVal += parseFloat(cb.value);
-    });
-
-    const total = basePreco + opsVal;
-    
-    document.getElementById('w2pValorTotal').innerText = fmtR(total);
-    // Guarda o custo calculado em um dataset invisível no elemento total, ou recalcula no submit
-    document.getElementById('w2pValorTotal').dataset.custo = (baseCusto).toString(); 
-    document.getElementById('w2pValorTotal').dataset.preco = (total).toString(); 
+    else if (pdvCurrentProduct.group === 'C') {
+        html += createSelect('Material', 'papel', pdvCurrentProduct.papel);
+        html += `
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Largura (m)</label>
+                <input type="number" step="0.01" min="0.1" placeholder="Ex: 1.5" value="${pdvCurrentConfig.largura}" 
+                       oninput="updateConfig('largura', this.value)"
+                       class="w-full bg-slate-800 rounded-lg p-3 text-sm text-white border border-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Altura (m)</label>
+                <input type="number" step="0.01" min="0.1" placeholder="Ex: 2.0" value="${pdvCurrentConfig.altura}" 
+                       oninput="updateConfig('altura', this.value)"
+                       class="w-full bg-slate-800 rounded-lg p-3 text-sm text-white border border-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider">Qtd Peças</label>
+                <input type="number" min="1" value="${pdvCurrentConfig.qtd}" 
+                       oninput="updateConfig('qtd', this.value)"
+                       class="w-full bg-slate-800 rounded-lg p-3 text-sm text-white border border-slate-700 outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="col-span-1 md:col-span-2 text-sm text-slate-400 bg-slate-800/50 p-3 rounded-lg border border-slate-700 mt-2">
+                <i class="fa-solid fa-circle-info mr-2"></i> Valor base do Material: <strong>R$ ${pdvCurrentProduct.precoM2.toFixed(2).replace('.',',')} / m²</strong>
+            </div>
+        `;
+    }
+    container.innerHTML = html;
 };
 
-window.handleBalcaoAddToCart = function() {
-    if (!currentW2pProd) {
-        showToast('Selecione e configure um produto primeiro.', 'error');
+window.updateConfig = function(key, value) {
+    if (['tiragem', 'qtd'].includes(key)) {
+        pdvCurrentConfig[key] = parseInt(value) || (key==='tiragem'?1000:1);
+    } else if (['largura', 'altura'].includes(key)) {
+        pdvCurrentConfig[key] = parseFloat(value) || 0;
+    } else {
+        pdvCurrentConfig[key] = value;
+    }
+    recalculateConfig();
+};
+
+window.recalculateConfig = function() {
+    if (!pdvCurrentProduct) return;
+
+    if (pdvCurrentProduct.group === 'A') {
+        pdvCurrentSubtotal = pdvCurrentProduct.calcPrice(pdvCurrentConfig.tamanho, pdvCurrentConfig.papel, pdvCurrentConfig.cor, pdvCurrentConfig.tiragem);
+    } 
+    else if (pdvCurrentProduct.group === 'B') {
+        pdvCurrentSubtotal = pdvCurrentProduct.calcPrice(pdvCurrentConfig.tamanho, pdvCurrentConfig.papel, pdvCurrentConfig.cor, pdvCurrentConfig.qtd);
+    } 
+    else if (pdvCurrentProduct.group === 'C') {
+        pdvCurrentSubtotal = pdvCurrentProduct.calcPrice(pdvCurrentConfig.largura, pdvCurrentConfig.altura, pdvCurrentProduct.precoM2, pdvCurrentConfig.qtd);
+    }
+    document.getElementById('itemSubtotal').innerText = fmtR(pdvCurrentSubtotal);
+};
+
+window.handleAddToCart = function() {
+    if (!pdvCurrentProduct) return;
+
+    if (pdvCurrentProduct.group === 'C' && (pdvCurrentConfig.largura <= 0 || pdvCurrentConfig.altura <= 0)) {
+        showToast('Informe Largura e Altura maiores que zero.', 'error');
         return;
     }
 
-    let qtd = 1;
-    let detalhes = currentW2pProd.nome;
-    let custoTotal = parseFloat(document.getElementById('w2pValorTotal').dataset.custo) || 0;
-    let precoTotal = parseFloat(document.getElementById('w2pValorTotal').dataset.preco) || 0;
-    let m2Total = 0;
-
-    // Build details string based on type
-    if (currentW2pProd.tipoCalculo === 'matriz') {
-        if (!currentW2pQtd) {
-            showToast('Selecione uma quantidade na grade.', 'error');
-            return;
-        }
-        qtd = parseInt(currentW2pQtd);
-        detalhes += ` (Lote de ${qtd})`;
-    } else if (currentW2pProd.tipoCalculo === 'm2' || currentW2pProd.categoria.includes('Plotter')) {
-        const l = parseFloat(document.getElementById('w2pPlotterLargura').value) || 0;
-        const a = parseFloat(document.getElementById('w2pPlotterAltura').value) || 0;
-        qtd = parseInt(document.getElementById('w2pPlotterQtd').value) || 1;
-        m2Total = ((l * a) / 10000) * qtd;
-        detalhes += ` (${l}x${a}cm)`;
-    } else {
-        qtd = parseInt(document.getElementById('w2pA4Qtd').value) || 1;
-        const g = document.getElementById('w2pA4Gramatura').value || 'Padrão';
-        detalhes += ` (${g}g)`;
+    const obs = document.getElementById('itemObs').value.trim();
+    let details = [];
+    if (pdvCurrentConfig.tamanho) details.push(pdvCurrentConfig.tamanho);
+    if (pdvCurrentConfig.papel) details.push(pdvCurrentConfig.papel);
+    if (pdvCurrentConfig.cor) details.push(pdvCurrentConfig.cor);
+    
+    let m2Total = null;
+    if (pdvCurrentProduct.group === 'C') {
+        details.push(`${pdvCurrentConfig.largura}m x ${pdvCurrentConfig.altura}m`);
+        m2Total = (pdvCurrentConfig.largura * pdvCurrentConfig.altura) * pdvCurrentConfig.qtd;
     }
 
-    // Add optionals text
-    document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]:checked').forEach(cb => {
-        detalhes += ` + ${cb.parentElement.innerText.trim()}`;
-    });
+    const itemQtd = pdvCurrentProduct.group === 'A' ? pdvCurrentConfig.tiragem : pdvCurrentConfig.qtd;
 
     const cartItem = {
-        produtoId: currentW2pProd.id,
-        categoria: currentW2pProd.categoria,
-        detalhes,
-        m2Total: m2Total > 0 ? m2Total : null,
-        qtd,
-        custoTotal,
-        precoTotal,
-        lucro: precoTotal - custoTotal,
-        // guardamos referência para baixar o estoque apenas na finalização
-        estoqueProd: currentW2pProd
+        produtoId: pdvCurrentProduct.id,
+        categoria: pdvCurrentProduct.name,
+        detalhes: details.join(' • '),
+        obs: obs,
+        qtd: itemQtd,
+        isLote: pdvCurrentProduct.group === 'A',
+        m2Total: m2Total,
+        custoTotal: pdvCurrentSubtotal * 0.4, // Custo fake (40% do venda) para DRE
+        precoTotal: pdvCurrentSubtotal,
+        lucro: pdvCurrentSubtotal * 0.6
     };
 
     graficaCart.push(cartItem);
+    resetConfigurator();
     renderGraficaCart();
-    
-    // Reset configurator
-    document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]').forEach(cb => cb.checked = false);
-    document.getElementById('w2pGridArea').style.display = 'none';
-    document.getElementById('w2pPlotterFields').style.display = 'none';
-    document.getElementById('w2pA4Fields').style.display = 'none';
-    currentW2pProd = null;
-    currentW2pQtd = null;
-    document.getElementById('w2pProduto').value = '';
-    ['Material', 'Cor', 'Cobertura', 'Tamanho', 'Acabamento'].forEach(id => {
-        const el = document.getElementById('w2p' + id);
-        if (el) el.disabled = true;
-    });
-    document.getElementById('w2pValorTotal').innerText = 'R$ 0,00';
-    
     showToast('Adicionado ao carrinho!', 'success');
 };
 
-window.renderGraficaCart = function() {
-    const tbody = document.getElementById('graficaCartTableBody');
-    if (!tbody) return;
-
-    if (graficaCart.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); font-style: italic;">Carrinho vazio.</td></tr>`;
-        document.getElementById('bCartItens').innerText = '0';
-        document.getElementById('bCartTotal').innerText = 'R$ 0,00';
-        return;
-    }
-
-    let html = '';
-    let total = 0;
-    graficaCart.forEach((item, idx) => {
-        total += item.precoTotal;
-        html += `
-            <tr>
-                <td style="font-size: 0.85rem;"><strong>${item.categoria}</strong><br>${item.detalhes}</td>
-                <td>${item.qtd.toLocaleString('pt-BR')}</td>
-                <td>${fmtR(item.precoTotal / item.qtd)}</td>
-                <td style="font-weight: bold; color: var(--accent-emerald);">${fmtR(item.precoTotal)}</td>
-                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeGraficaCartItem(${idx})"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-        `;
-    });
-
-    tbody.innerHTML = html;
-    document.getElementById('bCartItens').innerText = graficaCart.length.toString();
-    document.getElementById('bCartTotal').innerText = fmtR(total);
+window.duplicateCartItem = function(index) {
+    const item = { ...graficaCart[index] };
+    graficaCart.push(item);
+    renderGraficaCart();
 };
 
 window.removeGraficaCartItem = function(index) {
@@ -2364,27 +2419,86 @@ window.removeGraficaCartItem = function(index) {
     renderGraficaCart();
 };
 
-window.handleBalcaoFinalizeOrder = function() {
+window.clearCart = function() {
+    if (graficaCart.length > 0 && confirm('Tem certeza que deseja limpar o carrinho?')) {
+        graficaCart = [];
+        document.getElementById('clientName').value = '';
+        document.getElementById('summaryDiscount').value = 0;
+        renderGraficaCart();
+    }
+};
+
+window.renderGraficaCart = function() {
+    const list = document.getElementById('cartItemsList');
+    if (!list) return;
+    
+    document.getElementById('cartCountBadge').innerText = `${graficaCart.length} itens`;
+
+    if (graficaCart.length === 0) {
+        list.innerHTML = `
+            <div class="h-full flex flex-col items-center justify-center text-slate-500 pb-10">
+                <i class="fa-solid fa-cart-shopping text-4xl mb-4 opacity-30"></i>
+                <p class="text-sm">O carrinho está vazio.</p>
+            </div>
+        `;
+    } else {
+        list.innerHTML = graficaCart.map((item, idx) => `
+            <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 hover:border-slate-600 transition group">
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-bold text-slate-200 text-sm m-0">${item.categoria}</h4>
+                    <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" onclick="duplicateCartItem(${idx})" class="text-slate-400 hover:text-brand-400 bg-transparent border-none cursor-pointer p-0"><i class="fa-solid fa-copy"></i></button>
+                        <button type="button" onclick="removeGraficaCartItem(${idx})" class="text-slate-400 hover:text-red-400 bg-transparent border-none cursor-pointer p-0"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mb-1 leading-tight m-0">${item.detalhes}</p>
+                ${item.obs ? `<p class="text-xs text-amber-400 mb-2 mt-1 m-0"><i class="fa-solid fa-comment-dots mr-1"></i>${item.obs}</p>` : ''}
+                
+                <div class="flex justify-between items-end mt-3 border-t border-slate-800 pt-2">
+                    <span class="text-xs text-slate-300 font-medium">Qtd: ${item.isLote ? 'Lote ' : ''}${item.qtd.toLocaleString('pt-BR')}</span>
+                    <span class="font-bold text-emerald-400 text-sm">${fmtR(item.precoTotal)}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    calculateTotal();
+    list.scrollTop = list.scrollHeight;
+};
+
+window.calculateTotal = function() {
+    const subtotal = graficaCart.reduce((acc, curr) => acc + curr.precoTotal, 0);
+    const discountInput = parseFloat(document.getElementById('summaryDiscount').value) || 0;
+    
+    const total = Math.max(0, subtotal - discountInput);
+
+    document.getElementById('summarySubtotal').innerText = fmtR(subtotal);
+    document.getElementById('summaryTotal').innerText = fmtR(total);
+};
+
+window.finalizeSale = function() {
     if (graficaCart.length === 0) {
         showToast('O carrinho está vazio.', 'warning');
         return;
     }
 
-    const cliente = document.getElementById('bClienteNome').value.trim() || 'Balcão';
-    const formaPagamento = document.getElementById('bPagamentoForma').value;
-    const obs = document.getElementById('bObsDet').value.trim();
+    const cliente = document.getElementById('clientName').value.trim() || 'Balcão';
+    const formaPagamento = document.getElementById('paymentMethod').value;
+    const orderStatus = document.getElementById('orderStatus').value;
+    const desconto = parseFloat(document.getElementById('summaryDiscount').value) || 0;
     
     const dataVenda = todayISO();
     
-    // Para cada item no carrinho, cria uma linha na tabela graficaVendas e baixa estoque
+    // Distribui o desconto proporcionalmente para não quebrar o DRE
+    const subtotalGeral = graficaCart.reduce((acc, curr) => acc + curr.precoTotal, 0);
+    const taxaDesconto = subtotalGeral > 0 ? (desconto / subtotalGeral) : 0;
+
     graficaCart.forEach(item => {
-        // Baixa o estoque
-        if (item.estoqueProd) {
-            item.estoqueProd.qtdEstoque = Math.max(0, item.estoqueProd.qtdEstoque - item.qtd);
-        }
+        const precoComDesconto = item.precoTotal - (item.precoTotal * taxaDesconto);
+        const lucroFinal = precoComDesconto - item.custoTotal;
         
         const venda = {
-            id: Date.now().toString() + Math.floor(Math.random()*1000), // Random p/ não bater ID num loop rápido
+            id: Date.now().toString() + Math.floor(Math.random()*1000), 
             data: dataVenda,
             cliente,
             tipoItem: item.categoria,
@@ -2393,22 +2507,21 @@ window.handleBalcaoFinalizeOrder = function() {
             m2Total: item.m2Total,
             qtd: item.qtd,
             custoTotal: item.custoTotal,
-            precoTotal: item.precoTotal,
-            lucro: item.lucro,
+            precoTotal: precoComDesconto,
+            lucro: lucroFinal,
             formaPagamento,
-            obs,
-            status: 'Pendente Entrega'
+            obs: item.obs,
+            status: orderStatus
         };
         graficaVendas.unshift(venda);
     });
 
-    saveGraficaProdutos();
     saveGraficaVendas();
     showToast(`Venda de ${graficaCart.length} itens finalizada!`, 'success');
 
-    // Reset geral
     graficaCart = [];
-    document.getElementById('graficaBalcaoForm').reset();
+    document.getElementById('clientName').value = '';
+    document.getElementById('summaryDiscount').value = 0;
     renderGraficaCart();
     renderGraficaApp();
 };
@@ -2598,7 +2711,7 @@ function setupGraficaSettingsModal() {
 // ----- Renderers -----
 function renderGraficaApp() {
     populateGraficaMonthFilter();
-    populateW2PProdutoDropdown();
+    renderCategoryGrid();
     renderGraficaCart();
     renderGraficaVendasTable();
     renderGraficaProdutosTable();

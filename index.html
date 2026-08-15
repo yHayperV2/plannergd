@@ -14,6 +14,25 @@
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- Tailwind CSS (Scoped for Grafica PDV) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            corePlugins: {
+                preflight: false,
+            },
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' },
+                        brand: { 500: '#3b82f6', 600: '#2563eb' }
+                    }
+                }
+            }
+        }
+    </script>
+    
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             alert('ERRO DE SISTEMA DETECTADO:\n\n' + message + '\nLinha: ' + lineno + '\n\nPor favor, me envie uma foto desse erro!');
@@ -1007,185 +1026,146 @@
 
     <!-- TAB 1: Balcão / Nova Venda Rápida (PDV Balcão) -->
     <div id="gtab-balcao" class="gtab-content active">
-        <section class="card-box">
-            <div class="card-header">
-                <div>
-                    <h3><i class="fa-solid fa-cash-register text-primary"></i> Atendimento de Balcão — Escolha o Produto</h3>
-                    <p class="section-desc">Selecione o tipo de serviço abaixo para abrir as opções e efetuar o orçamento/venda.</p>
-                </div>
-            </div>
-
-            <form id="graficaBalcaoForm" class="entry-form style-balcao-form">
-                <!-- Construtor Web2Print (Matriz) -->
-                <div class="balcao-panel" id="bpanel-padronizado">
-                    <h4><i class="fa-solid fa-layer-group"></i> Configuração do Produto</h4>
+        <div class="grafica-pdv-wrapper bg-slate-900 text-slate-200 flex flex-col overflow-hidden" style="min-height: 80vh; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            
+            <main class="flex-1 flex overflow-hidden">
+                
+                <!-- Left Column: Product Configurator -->
+                <section class="flex-1 border-r border-slate-800 flex flex-col bg-slate-900 overflow-y-auto">
                     
-                    <!-- Linha 1: Seletores em Cascata -->
-                    <div class="form-row form-row-wrap cascade-selectors">
-                        <div class="form-group" style="flex: 1 1 200px;">
-                            <label>Produto *</label>
-                            <select id="w2pProduto" class="form-control" onchange="w2pHandleChange('produto')">
-                                <option value="">-- Selecione --</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1 1 150px;">
-                            <label>Material</label>
-                            <select id="w2pMaterial" class="form-control" onchange="w2pHandleChange('material')" disabled>
-                                <option value="">--</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1 1 100px;">
-                            <label>Cor</label>
-                            <select id="w2pCor" class="form-control" onchange="w2pHandleChange('cor')" disabled>
-                                <option value="">--</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1 1 150px;">
-                            <label>Cobertura</label>
-                            <select id="w2pCobertura" class="form-control" onchange="w2pHandleChange('cobertura')" disabled>
-                                <option value="">--</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1 1 120px;">
-                            <label>Tamanho</label>
-                            <select id="w2pTamanho" class="form-control" onchange="w2pHandleChange('tamanho')" disabled>
-                                <option value="">--</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1 1 150px;">
-                            <label>Acabamento Incluso</label>
-                            <select id="w2pAcabamento" class="form-control" onchange="w2pHandleChange('acabamento')" disabled>
-                                <option value="">--</option>
-                            </select>
+                    <!-- Category Selection -->
+                    <div class="p-6 pb-2">
+                        <h2 class="text-lg font-semibold text-white mb-4"><i class="fa-solid fa-box-open text-brand-500 mr-2"></i>Selecione o Produto</h2>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="categoryGrid">
+                            <!-- Categories rendered here -->
                         </div>
                     </div>
 
-                    <!-- Linha 2: Grade e Resumo (Escondida até escolher tudo) -->
-                    <div id="w2pGridArea" style="display:none; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-                        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <!-- Dynamic Form Area -->
+                    <div class="p-6 flex-1 flex flex-col">
+                        <div id="configuratorWrapper" class="hidden flex-1 flex flex-col">
+                            <div class="flex justify-between items-end mb-6 border-b border-slate-800 pb-4">
+                                <div>
+                                    <span class="text-xs font-semibold text-brand-500 uppercase tracking-wider" id="configCategory">Categoria</span>
+                                    <h3 class="text-2xl font-bold text-white mt-1 m-0" id="configTitle">Nome do Produto</h3>
+                                </div>
+                                <button type="button" onclick="resetConfigurator()" class="text-sm text-slate-400 hover:text-white transition bg-transparent border-none cursor-pointer">
+                                    <i class="fa-solid fa-arrow-left mr-1"></i> Voltar
+                                </button>
+                            </div>
+
+                            <!-- The dynamic fields will be injected here -->
+                            <div id="dynamicFormFields" class="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
+                                
+                            </div>
+
+                            <!-- Bottom Configurator: Observations and Add Button -->
+                            <div class="mt-8 p-5 rounded-xl border border-slate-700 bg-slate-800/50">
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-slate-400 mb-1">Observações da Produção</label>
+                                    <input type="text" id="itemObs" class="w-full bg-slate-900 rounded-lg p-3 text-sm text-white focus:ring-2 focus:ring-brand-500 border border-slate-700" placeholder="Ex: Furo 3mm, Laminação fosca...">
+                                </div>
+                                
+                                <div class="flex items-center justify-between mt-6">
+                                    <div>
+                                        <p class="text-sm text-slate-400 mb-1">Subtotal do Item</p>
+                                        <p class="text-3xl font-bold text-emerald-400 m-0" id="itemSubtotal">R$ 0,00</p>
+                                    </div>
+                                    <button type="button" onclick="handleAddToCart()" class="bg-brand-600 hover:bg-brand-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg border-none cursor-pointer transition-all flex items-center gap-2 text-lg">
+                                        <i class="fa-solid fa-plus"></i> Adicionar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Empty State -->
+                        <div id="emptyConfigurator" class="flex-1 flex flex-col items-center justify-center text-slate-500 py-10">
+                            <i class="fa-solid fa-arrow-pointer text-4xl mb-4 opacity-50"></i>
+                            <p>Selecione um produto acima para configurar.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right Column: Cart & Checkout -->
+                <section class="w-96 lg:w-[450px] bg-slate-850 flex flex-col shrink-0">
+                    <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                        <h2 class="text-lg font-semibold text-white m-0"><i class="fa-solid fa-shopping-cart text-brand-500 mr-2"></i>Pedido Atual</h2>
+                        <span class="bg-slate-800 text-slate-300 text-xs font-bold px-2 py-1 rounded-md border border-slate-700" id="cartCountBadge">0 itens</span>
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div class="flex-1 overflow-y-auto p-4 space-y-3" id="cartItemsList">
+                        <!-- Items rendered here via JS -->
+                    </div>
+
+                    <!-- Checkout Panel -->
+                    <div class="p-5 bg-slate-900 border-t border-slate-800">
+                        
+                        <!-- Customer Name -->
+                        <div class="mb-4">
+                            <div class="flex bg-slate-800 rounded-lg border border-slate-700 overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
+                                <span class="px-3 py-2 text-slate-400 bg-slate-850 border-r border-slate-700 flex items-center justify-center">
+                                    <i class="fa-solid fa-user"></i>
+                                </span>
+                                <input type="text" id="clientName" placeholder="Nome do Cliente (Opcional)" class="w-full bg-transparent p-2 text-sm text-white outline-none border-none focus:ring-0">
+                            </div>
+                        </div>
+
+                        <!-- Financial Summary -->
+                        <div class="space-y-2 mb-4 text-sm">
+                            <div class="flex justify-between text-slate-400">
+                                <span>Subtotal</span>
+                                <span id="summarySubtotal">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-400">
+                                <span>Desconto</span>
+                                <div class="flex items-center gap-1 w-24">
+                                    <span class="text-xs">R$</span>
+                                    <input type="number" id="summaryDiscount" value="0" min="0" oninput="calculateTotal()" class="w-full bg-slate-800 rounded p-1 text-right text-white border border-slate-700 text-xs h-7">
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center text-slate-400 pt-2">
+                                <span>Pagamento</span>
+                                <select id="paymentMethod" class="bg-slate-800 rounded p-1 border border-slate-700 text-white text-xs h-7 outline-none">
+                                    <option value="PIX">PIX</option>
+                                    <option value="Dinheiro">Dinheiro</option>
+                                    <option value="Cartão de Crédito">Cartão Crédito</option>
+                                    <option value="Cartão de Débito">Cartão Débito</option>
+                                    <option value="A Prazo">A Prazo</option>
+                                </select>
+                            </div>
                             
-                            <!-- Coluna 1: Quantidade (Radio Grid) -->
-                            <div style="flex: 1 1 250px; border-right: 1px dashed var(--border-color); padding-right: 15px;" id="w2pQtdColumn">
-                                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Quantidade</h5>
-                                <div id="w2pQtdGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                    <!-- Preenchido via JS -->
-                                </div>
-                            </div>
-
-                            <!-- Coluna 2: Acabamentos Opcionais -->
-                            <div style="flex: 1 1 250px; border-right: 1px dashed var(--border-color); padding-right: 15px;">
-                                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Acabamentos Opcionais</h5>
-                                <div id="w2pOpcionaisList" style="display: flex; flex-direction: column; gap: 8px;">
-                                    <label style="display: flex; justify-content: space-between; background: rgba(0,0,0,0.02); padding: 5px; border-radius: 4px;">
-                                        <span><input type="checkbox" onchange="w2pRecalculate()" value="10"> Furo 3mm</span>
-                                        <span style="color: var(--accent-rose); font-weight: bold;">R$ 10,00</span>
-                                    </label>
-                                    <label style="display: flex; justify-content: space-between; background: rgba(0,0,0,0.02); padding: 5px; border-radius: 4px;">
-                                        <span><input type="checkbox" onchange="w2pRecalculate()" value="30"> Corte Especial</span>
-                                        <span style="color: var(--accent-rose); font-weight: bold;">R$ 30,00</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Coluna 3: Resumo -->
-                            <div style="flex: 1 1 200px; text-align: center;">
-                                <h5 style="color: var(--primary-color); margin-bottom: 10px; text-align: left;">Resumo</h5>
-                                <div style="background: rgba(0,0,0,0.02); padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 15px; text-align: left;">
-                                    <em>Previsão de produção:</em> <strong style="color: var(--accent-rose);">até 2 dias úteis</strong>
-                                </div>
-                                <h4 style="color: var(--primary-color); text-transform: uppercase; margin-bottom: 5px;">Valor Total</h4>
-                                <h2 id="w2pValorTotal" style="color: var(--accent-emerald); font-size: 2rem;">R$ 0,00</h2>
-                                <p style="font-size: 0.85rem; color: var(--text-muted);">Pagamento via PIX/Cartão</p>
+                            <div class="pt-2">
+                                <label class="block text-slate-400 mb-1" style="font-size: 0.75rem;">Status do Pedido / Entrega</label>
+                                <select id="orderStatus" class="w-full bg-slate-800 rounded p-1 border border-slate-700 text-white text-xs h-7 outline-none">
+                                    <option value="Pendente Aprovação">Pendente Aprovação / Arte</option>
+                                    <option value="Pendente Produção">Pendente Produção</option>
+                                    <option value="Pendente Entrega" selected>Pronto (Pendente Entrega)</option>
+                                    <option value="Entregue">Entregue / Concluído</option>
+                                </select>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Plotter Fields (Legacy) -->
-                    <div class="form-row" id="w2pPlotterFields" style="display:none; margin-top: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px;">
-                        <div class="form-group">
-                            <label for="w2pPlotterLargura">Largura (cm) *</label>
-                            <input type="number" id="w2pPlotterLargura" placeholder="Ex: 100" class="form-control" oninput="w2pRecalculate()">
-                        </div>
-                        <div class="form-group">
-                            <label for="w2pPlotterAltura">Altura (cm) *</label>
-                            <input type="number" id="w2pPlotterAltura" placeholder="Ex: 200" class="form-control" oninput="w2pRecalculate()">
-                        </div>
-                        <div class="form-group">
-                            <label for="w2pPlotterQtd">Quantidade *</label>
-                            <input type="number" id="w2pPlotterQtd" value="1" min="1" class="form-control" oninput="w2pRecalculate()">
-                        </div>
-                    </div>
 
-                    <!-- A4 Fields (Legacy) -->
-                    <div class="form-row" id="w2pA4Fields" style="display:none; margin-top: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 8px;">
-                        <div class="form-group">
-                            <label for="w2pA4Gramatura">Gramatura (g) *</label>
-                            <input type="number" id="w2pA4Gramatura" placeholder="Ex: 90, 180, 240" class="form-control" oninput="w2pRecalculate()">
+                        <div class="border-t border-slate-700 border-dashed pt-4 mb-5">
+                            <div class="flex justify-between items-end">
+                                <span class="text-slate-300 font-medium">Total a Pagar</span>
+                                <span class="text-3xl font-bold text-emerald-400 leading-none m-0" id="summaryTotal">R$ 0,00</span>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="w2pA4Qtd">Quantidade *</label>
-                            <input type="number" id="w2pA4Qtd" value="1" min="1" class="form-control" oninput="w2pRecalculate()">
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <button type="button" onclick="clearCart()" class="py-3 px-4 rounded-lg font-medium text-sm bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 cursor-pointer transition">
+                                Limpar
+                            </button>
+                            <button type="button" onclick="finalizeSale()" class="py-3 px-4 rounded-lg font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white border-none shadow-lg cursor-pointer transition">
+                                <i class="fa-solid fa-check mr-2"></i> Finalizar
+                            </button>
                         </div>
                     </div>
-                    
-                    <button type="button" class="btn btn-primary" onclick="handleBalcaoAddToCart()" style="width: 100%; margin-top: 20px;">
-                        <i class="fa-solid fa-cart-plus"></i> Adicionar ao Carrinho
-                    </button>
-                </div>
-
-                <!-- Painel do Carrinho -->
-                <div class="balcao-panel" id="bpanel-carrinho" style="margin-top: 20px;">
-                    <h4><i class="fa-solid fa-shopping-cart"></i> Carrinho de Compras</h4>
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Item / Detalhes</th>
-                                    <th>Qtd</th>
-                                    <th>Valor Un.</th>
-                                    <th>Subtotal</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="graficaCartTableBody">
-                                <!-- Preenchido pelo JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="balcao-checkout-box">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="bClienteNome"><i class="fa-solid fa-user"></i> Nome do Cliente:</label>
-                            <input type="text" id="bClienteNome" placeholder="Ex: João Silva (opcional)" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="bPagamentoForma"><i class="fa-solid fa-money-bill-wave"></i> Forma de Pagamento:</label>
-                            <select id="bPagamentoForma" class="form-control">
-                                <option value="PIX">⚡ PIX</option>
-                                <option value="Dinheiro">💵 Dinheiro</option>
-                                <option value="Cartão de Crédito">💳 Cartão de Crédito</option>
-                                <option value="Cartão de Débito">💳 Cartão de Débito</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex:1.5;">
-                            <label for="bObsDet"><i class="fa-solid fa-file-lines"></i> Observações / Arte:</label>
-                            <input type="text" id="bObsDet" placeholder="Ex: Enviar prova por WhatsApp" class="form-control">
-                        </div>
-                    </div>
-
-                    <div class="calc-summary-box style-checkout-summary">
-                        <div>Itens no Carrinho: <strong id="bCartItens">0</strong></div>
-                        <div>Total a Pagar: <strong id="bCartTotal" class="text-success fs-1-1">R$ 0,00</strong></div>
-                    </div>
-
-                    <button type="button" onclick="handleBalcaoFinalizeOrder()" class="btn btn-success btn-block btn-lg" style="margin-top:10px;">
-                        <i class="fa-solid fa-check-double"></i> Finalizar & Registrar Venda Completa
-                    </button>
-                </div>
-            </form>
-        </section>
+                </section>
+            </main>
+        </div>
     </div>
 
     <!-- TAB 2: Histórico de Vendas e Pedidos (Aba Separada) -->
