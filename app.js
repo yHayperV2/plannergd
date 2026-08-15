@@ -2515,8 +2515,8 @@ window.calculateTotal = function() {
     const faltaPagar = Math.max(0, total - sinalInput);
 
     document.getElementById('summarySubtotal').innerText = fmtR(subtotal);
-    document.getElementById('summaryTotal').innerText = fmtR(total);
-    document.getElementById('summaryFaltaPagar').innerText = fmtR(faltaPagar);
+    document.getElementById('summaryTotalPedido').innerText = fmtR(total);
+    document.getElementById('summaryTotal').innerText = fmtR(faltaPagar);
 };
 
 window.finalizeSale = function() {
