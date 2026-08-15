@@ -1964,8 +1964,9 @@ function loadGraficaProdutos() {
     const d = localStorage.getItem(userKey('grafica_produtos'));
     graficaProdutos = d ? JSON.parse(d) : [];
     
-    if (graficaProdutos.length === 0) {
+    if (!localStorage.getItem(userKey('grafica_seeded'))) {
         seedGraficaProdutos();
+        localStorage.setItem(userKey('grafica_seeded'), 'true');
     }
 }
 
@@ -2009,7 +2010,7 @@ function seedGraficaProdutos() {
         )
     ];
 
-    graficaProdutos = defaultProds.map((p, idx) => ({
+    const newProds = defaultProds.map((p, idx) => ({
         id: 'seed_' + idx + '_' + Date.now().toString(),
         tipo: 'padronizado',
         nome: p.n,
@@ -2023,6 +2024,8 @@ function seedGraficaProdutos() {
         qtdEstoque: 1000,
         estoqueMinimo: 100
     }));
+
+    graficaProdutos = [...graficaProdutos, ...newProds];
 
     saveGraficaProdutos();
 }
