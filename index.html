@@ -1127,7 +1127,31 @@
                             <input type="number" id="w2pA4Qtd" value="1" min="1" class="form-control" oninput="w2pRecalculate()">
                         </div>
                     </div>
+                    
+                    <button type="button" class="btn btn-primary" onclick="handleBalcaoAddToCart()" style="width: 100%; margin-top: 20px;">
+                        <i class="fa-solid fa-cart-plus"></i> Adicionar ao Carrinho
+                    </button>
+                </div>
 
+                <!-- Painel do Carrinho -->
+                <div class="balcao-panel" id="bpanel-carrinho" style="margin-top: 20px;">
+                    <h4><i class="fa-solid fa-shopping-cart"></i> Carrinho de Compras</h4>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Item / Detalhes</th>
+                                    <th>Qtd</th>
+                                    <th>Valor Un.</th>
+                                    <th>Subtotal</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="graficaCartTableBody">
+                                <!-- Preenchido pelo JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="balcao-checkout-box">
@@ -1152,13 +1176,12 @@
                     </div>
 
                     <div class="calc-summary-box style-checkout-summary">
-                        <div>Custo Total: <strong id="bSumCusto" class="text-danger">R$ 0,00</strong></div>
-                        <div>Preço Venda: <strong id="bSumPreco" class="text-success fs-1-1">R$ 0,00</strong></div>
-                        <div>Lucro Previsto: <strong id="bSumLucro" class="text-primary fs-1-1">+R$ 0,00</strong></div>
+                        <div>Itens no Carrinho: <strong id="bCartItens">0</strong></div>
+                        <div>Total a Pagar: <strong id="bCartTotal" class="text-success fs-1-1">R$ 0,00</strong></div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:10px;">
-                        <i class="fa-solid fa-cart-shopping"></i> Finalizar & Registrar Pedido de Balcão
+                    <button type="button" onclick="handleBalcaoFinalizeOrder()" class="btn btn-success btn-block btn-lg" style="margin-top:10px;">
+                        <i class="fa-solid fa-check-double"></i> Finalizar & Registrar Venda Completa
                     </button>
                 </div>
             </form>

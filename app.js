@@ -58,6 +58,7 @@ let roupasSettings = {
 // Gráfica Rápida state
 let graficaProdutos = [];
 let graficaVendas = [];
+let graficaCart = [];
 let graficaDespesasOp = [];
 let graficaDespesasPessoais = [];
 let editingGraficaProdutoId = null;
@@ -2257,7 +2258,7 @@ window.w2pRecalculate = function() {
     document.getElementById('w2pValorTotal').dataset.preco = (total).toString(); 
 };
 
-function handleBalcaoCheckoutSubmit() {
+window.handleBalcaoAddToCart = function() {
     if (!currentW2pProd) {
         showToast('Selecione e configure um produto primeiro.', 'error');
         return;
@@ -2294,36 +2295,23 @@ function handleBalcaoCheckoutSubmit() {
         detalhes += ` + ${cb.parentElement.innerText.trim()}`;
     });
 
-    // Diminui estoque, mas permite negativo
-    currentW2pProd.qtdEstoque = Math.max(0, currentW2pProd.qtdEstoque - qtd);
-    saveGraficaProdutos();
-    
-    const cliente = document.getElementById('bClienteNome').value.trim() || 'Balcão';
-    const formaPagamento = document.getElementById('bPagamentoForma').value;
-    const obs = document.getElementById('bObsDet').value.trim();
-
-    const venda = {
-        id: Date.now().toString(),
-        data: todayISO(),
-        cliente,
-        tipoItem: currentW2pProd.categoria,
+    const cartItem = {
         produtoId: currentW2pProd.id,
+        categoria: currentW2pProd.categoria,
         detalhes,
         m2Total: m2Total > 0 ? m2Total : null,
         qtd,
         custoTotal,
         precoTotal,
         lucro: precoTotal - custoTotal,
-        formaPagamento,
-        obs,
-        status: 'Pendente Entrega'
+        // guardamos referência para baixar o estoque apenas na finalização
+        estoqueProd: currentW2pProd
     };
 
-    graficaVendas.unshift(venda);
-    saveGraficaVendas();
-    showToast(`Pedido registrado com sucesso!`, 'success');
-
-    document.getElementById('graficaBalcaoForm').reset();
+    graficaCart.push(cartItem);
+    renderGraficaCart();
+    
+    // Reset configurator
     document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]').forEach(cb => cb.checked = false);
     document.getElementById('w2pGridArea').style.display = 'none';
     document.getElementById('w2pPlotterFields').style.display = 'none';
@@ -2335,9 +2323,95 @@ function handleBalcaoCheckoutSubmit() {
         const el = document.getElementById('w2p' + id);
         if (el) el.disabled = true;
     });
+    document.getElementById('w2pValorTotal').innerText = 'R$ 0,00';
+    
+    showToast('Adicionado ao carrinho!', 'success');
+};
 
+window.renderGraficaCart = function() {
+    const tbody = document.getElementById('graficaCartTableBody');
+    if (!tbody) return;
+
+    if (graficaCart.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); font-style: italic;">Carrinho vazio.</td></tr>`;
+        document.getElementById('bCartItens').innerText = '0';
+        document.getElementById('bCartTotal').innerText = 'R$ 0,00';
+        return;
+    }
+
+    let html = '';
+    let total = 0;
+    graficaCart.forEach((item, idx) => {
+        total += item.precoTotal;
+        html += `
+            <tr>
+                <td style="font-size: 0.85rem;"><strong>${item.categoria}</strong><br>${item.detalhes}</td>
+                <td>${item.qtd.toLocaleString('pt-BR')}</td>
+                <td>${fmtR(item.precoTotal / item.qtd)}</td>
+                <td style="font-weight: bold; color: var(--accent-emerald);">${fmtR(item.precoTotal)}</td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeGraficaCartItem(${idx})"><i class="fa-solid fa-trash"></i></button></td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+    document.getElementById('bCartItens').innerText = graficaCart.length.toString();
+    document.getElementById('bCartTotal').innerText = fmtR(total);
+};
+
+window.removeGraficaCartItem = function(index) {
+    graficaCart.splice(index, 1);
+    renderGraficaCart();
+};
+
+window.handleBalcaoFinalizeOrder = function() {
+    if (graficaCart.length === 0) {
+        showToast('O carrinho está vazio.', 'warning');
+        return;
+    }
+
+    const cliente = document.getElementById('bClienteNome').value.trim() || 'Balcão';
+    const formaPagamento = document.getElementById('bPagamentoForma').value;
+    const obs = document.getElementById('bObsDet').value.trim();
+    
+    const dataVenda = todayISO();
+    
+    // Para cada item no carrinho, cria uma linha na tabela graficaVendas e baixa estoque
+    graficaCart.forEach(item => {
+        // Baixa o estoque
+        if (item.estoqueProd) {
+            item.estoqueProd.qtdEstoque = Math.max(0, item.estoqueProd.qtdEstoque - item.qtd);
+        }
+        
+        const venda = {
+            id: Date.now().toString() + Math.floor(Math.random()*1000), // Random p/ não bater ID num loop rápido
+            data: dataVenda,
+            cliente,
+            tipoItem: item.categoria,
+            produtoId: item.produtoId,
+            detalhes: item.detalhes,
+            m2Total: item.m2Total,
+            qtd: item.qtd,
+            custoTotal: item.custoTotal,
+            precoTotal: item.precoTotal,
+            lucro: item.lucro,
+            formaPagamento,
+            obs,
+            status: 'Pendente Entrega'
+        };
+        graficaVendas.unshift(venda);
+    });
+
+    saveGraficaProdutos();
+    saveGraficaVendas();
+    showToast(`Venda de ${graficaCart.length} itens finalizada!`, 'success');
+
+    // Reset geral
+    graficaCart = [];
+    document.getElementById('graficaBalcaoForm').reset();
+    renderGraficaCart();
     renderGraficaApp();
-}
+};
 
 
 // ----- Forms Setup -----
@@ -2525,6 +2599,7 @@ function setupGraficaSettingsModal() {
 function renderGraficaApp() {
     populateGraficaMonthFilter();
     populateW2PProdutoDropdown();
+    renderGraficaCart();
     renderGraficaVendasTable();
     renderGraficaProdutosTable();
     renderGraficaDespesasOpTable();
