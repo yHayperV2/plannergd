@@ -61,6 +61,7 @@ let graficaVendas = [];
 let graficaCart = [];
 let graficaDespesasOp = [];
 let graficaDespesasPessoais = [];
+let graficaPrices = {};
 let editingGraficaProdutoId = null;
 let editingGraficaDespesaOpId = null;
 let editingGraficaDespesaPessoalId = null;
@@ -1955,6 +1956,7 @@ function loadGraficaSettings() {
         emailjsTemplateId: '',
         emailjsPublicKey: ''
     };
+    loadGraficaPrices();
 }
 function saveGraficaSettings() {
     localStorage.setItem(userKey('grafica_settings'), JSON.stringify(graficaSettings));
@@ -1969,6 +1971,24 @@ function loadGraficaProdutos() {
         seedGraficaProdutos();
         localStorage.setItem(userKey('grafica_seeded'), 'true');
     }
+}
+function saveGraficaProdutos() {
+    localStorage.setItem(userKey('grafica_produtos'), JSON.stringify(graficaProdutos));
+    syncCloudSave();
+}
+
+function loadGraficaPrices() {
+    if (graficaSettings && graficaSettings.prices) {
+        graficaPrices = graficaSettings.prices;
+    } else {
+        const d = localStorage.getItem(userKey('grafica_prices'));
+        graficaPrices = d ? JSON.parse(d) : {};
+    }
+}
+function saveGraficaPrices() {
+    graficaSettings.prices = graficaPrices;
+    saveGraficaSettings();
+    showToast('Tabela de Preços salva!', 'success');
 }
 
 function seedGraficaProdutos() {
@@ -2342,15 +2362,30 @@ window.updateConfig = function(key, value) {
 window.recalculateConfig = function() {
     if (!pdvCurrentProduct) return;
 
+    let calc = 0;
     if (pdvCurrentProduct.group === 'A') {
-        pdvCurrentSubtotal = pdvCurrentProduct.calcPrice(pdvCurrentConfig.tamanho, pdvCurrentConfig.papel, pdvCurrentConfig.cor, pdvCurrentConfig.tiragem);
+        const key = `${pdvCurrentProduct.id}_${pdvCurrentConfig.tamanho}_${pdvCurrentConfig.papel}_${pdvCurrentConfig.cor}_${pdvCurrentConfig.tiragem}`;
+        const defaultCalc = pdvCurrentProduct.calcPrice(pdvCurrentConfig.tamanho, pdvCurrentConfig.papel, pdvCurrentConfig.cor, pdvCurrentConfig.tiragem);
+        calc = getPriceFor(key, defaultCalc);
     } 
     else if (pdvCurrentProduct.group === 'B') {
-        pdvCurrentSubtotal = pdvCurrentProduct.calcPrice(pdvCurrentConfig.tamanho, pdvCurrentConfig.papel, pdvCurrentConfig.cor, pdvCurrentConfig.qtd);
+        const key = `${pdvCurrentProduct.id}_${pdvCurrentConfig.tamanho}_${pdvCurrentConfig.papel}_${pdvCurrentConfig.cor}`;
+        // Para o grupo B, o preço na tabela é unitário. O cálculo padrão multiplica pela QTD.
+        const cBase = pdvCurrentProduct.baseCores ? pdvCurrentProduct.baseCores[pdvCurrentConfig.cor] : 1;
+        const pBase = pdvCurrentProduct.basePrecoUnidade || 1;
+        const defaultUnitPrice = cBase * pBase;
+        
+        const unitPrice = getPriceFor(key, defaultUnitPrice);
+        calc = unitPrice * pdvCurrentConfig.qtd;
     } 
     else if (pdvCurrentProduct.group === 'C') {
-        pdvCurrentSubtotal = pdvCurrentProduct.calcPrice(pdvCurrentConfig.largura, pdvCurrentConfig.altura, pdvCurrentProduct.precoM2, pdvCurrentConfig.qtd);
+        const key = `${pdvCurrentProduct.id}_${pdvCurrentConfig.papel}`;
+        const defaultM2Price = pdvCurrentProduct.precoM2 || 45;
+        const m2Price = getPriceFor(key, defaultM2Price);
+        calc = (pdvCurrentConfig.largura * pdvCurrentConfig.altura) * m2Price * pdvCurrentConfig.qtd;
     }
+    
+    pdvCurrentSubtotal = calc;
     document.getElementById('itemSubtotal').innerText = fmtR(pdvCurrentSubtotal);
 };
 
@@ -2705,6 +2740,12 @@ function renderGraficaApp() {
     renderGraficaDespesasOpTable();
     renderGraficaDRE();
     renderGraficaDespesasPessoaisTable();
+    
+    // Novo Catalogo Dinâmico
+    renderCatalogMatrix();
+    renderCatalogUnidade();
+    renderCatalogM2();
+    
     updateGraficaKpis();
 }
 
@@ -3019,4 +3060,183 @@ function exportGraficaCsv() {
 
     downloadCSV(csv, `relatorio_grafica_${m}.csv`);
     showToast('Relatório CSV exportado!', 'success');
+}
+
+// ==========================================
+// CATÁLOGO DINÂMICO & PRECIFICAÇÃO
+// ==========================================
+
+function getPriceFor(key, defaultPrice) {
+    if (graficaPrices[key] !== undefined) {
+        return graficaPrices[key];
+    }
+    return defaultPrice;
+}
+
+window.onPriceChange = function(key, el) {
+    const val = parseFloat(el.value);
+    if (!isNaN(val)) {
+        graficaPrices[key] = val;
+    } else {
+        delete graficaPrices[key];
+    }
+}
+
+window.resetPricesToDefault = function() {
+    if (confirm('Tem certeza que deseja apagar todos os preços personalizados e voltar às fórmulas automáticas padrão?')) {
+        graficaPrices = {};
+        saveGraficaPrices();
+        renderCatalogMatrix();
+        renderCatalogUnidade();
+        renderCatalogM2();
+    }
+}
+
+window.switchCatalogTab = function(tabName) {
+    document.getElementById('catalogTabMatriz').classList.add('hidden');
+    document.getElementById('catalogTabUnidade').classList.add('hidden');
+    document.getElementById('catalogTabM2').classList.add('hidden');
+    
+    const btns = ['btnTabMatriz', 'btnTabUnidade', 'btnTabM2'];
+    btns.forEach(b => {
+        const el = document.getElementById(b);
+        if(el) {
+            el.classList.remove('border-brand-500', 'text-brand-400');
+            el.classList.add('border-transparent', 'text-slate-400');
+        }
+    });
+
+    if (tabName === 'matriz') {
+        document.getElementById('catalogTabMatriz').classList.remove('hidden');
+        document.getElementById('btnTabMatriz').classList.add('border-brand-500', 'text-brand-400');
+        renderCatalogMatrix();
+    } else if (tabName === 'unidade') {
+        document.getElementById('catalogTabUnidade').classList.remove('hidden');
+        document.getElementById('btnTabUnidade').classList.add('border-brand-500', 'text-brand-400');
+        renderCatalogUnidade();
+    } else if (tabName === 'm2') {
+        document.getElementById('catalogTabM2').classList.remove('hidden');
+        document.getElementById('btnTabM2').classList.add('border-brand-500', 'text-brand-400');
+        renderCatalogM2();
+    }
+}
+
+window.renderCatalogMatrix = function() {
+    const tbody = document.getElementById('catalogMatrixBody');
+    if (!tbody) return;
+    
+    const prodKey = document.getElementById('catalogFilterProd').value;
+    const prod = pdvCatalog.find(p => p.id === prodKey);
+    
+    if (!prod || prod.group !== 'A') {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">Produto não aplicável a matriz de tiragens.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    
+    prod.tamanhos.forEach(tamanho => {
+        const tBase = prod.baseTamanhos[tamanho];
+        prod.papeis.forEach(papel => {
+            prod.cores.forEach(cor => {
+                const cBase = prod.baseCores[cor];
+                prod.tiragens.forEach(tiragem => {
+                    const defaultPrice = tBase * cBase * prod.tiragemBase[tiragem];
+                    const key = `${prod.id}_${tamanho}_${papel}_${cor}_${tiragem}`;
+                    const currentPrice = getPriceFor(key, defaultPrice);
+                    
+                    html += `
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 text-slate-300">${tamanho}</td>
+                            <td class="p-3 text-slate-300">${papel}</td>
+                            <td class="p-3 text-slate-300">${cor}</td>
+                            <td class="p-3 text-slate-300 font-medium">${tiragem.toLocaleString('pt-BR')} un</td>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end items-center">
+                                    <span class="text-slate-500 mr-2">R$</span>
+                                    <input type="number" step="0.01" value="${currentPrice.toFixed(2)}" 
+                                           onchange="onPriceChange('${key}', this)"
+                                           class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-right focus:border-brand-500 focus:outline-none">
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        });
+    });
+    
+    tbody.innerHTML = html;
+}
+
+window.renderCatalogUnidade = function() {
+    const tbody = document.getElementById('catalogUnidadeBody');
+    if (!tbody) return;
+    
+    const prods = pdvCatalog.filter(p => p.group === 'B');
+    let html = '';
+    
+    prods.forEach(prod => {
+        prod.tamanhos.forEach(tamanho => {
+            prod.papeis.forEach(papel => {
+                prod.cores.forEach(cor => {
+                    const cBase = prod.baseCores ? prod.baseCores[cor] : 1;
+                    const pBase = prod.basePrecoUnidade || 1;
+                    const defaultPrice = cBase * pBase;
+                    
+                    const key = `${prod.id}_${tamanho}_${papel}_${cor}`;
+                    const currentPrice = getPriceFor(key, defaultPrice);
+                    
+                    html += `
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 font-medium text-brand-400">${prod.nome}</td>
+                            <td class="p-3 text-slate-300">${papel} - ${tamanho}</td>
+                            <td class="p-3 text-slate-300">${cor}</td>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end items-center">
+                                    <span class="text-slate-500 mr-2">R$</span>
+                                    <input type="number" step="0.01" value="${currentPrice.toFixed(2)}" 
+                                           onchange="onPriceChange('${key}', this)"
+                                           class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-right focus:border-brand-500 focus:outline-none">
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        });
+    });
+    tbody.innerHTML = html;
+}
+
+window.renderCatalogM2 = function() {
+    const tbody = document.getElementById('catalogM2Body');
+    if (!tbody) return;
+    
+    const prods = pdvCatalog.filter(p => p.group === 'C');
+    let html = '';
+    
+    prods.forEach(prod => {
+        prod.papeis.forEach(papel => {
+            const defaultPrice = prod.precoM2 || 45;
+            const key = `${prod.id}_${papel}`;
+            const currentPrice = getPriceFor(key, defaultPrice);
+            
+            html += `
+                <tr class="hover:bg-slate-800 transition">
+                    <td class="p-3 font-medium text-brand-400">${papel}</td>
+                    <td class="p-3 text-slate-300">${prod.nome}</td>
+                    <td class="p-3 text-right">
+                        <div class="flex justify-end items-center">
+                            <span class="text-slate-500 mr-2">R$</span>
+                            <input type="number" step="0.01" value="${currentPrice.toFixed(2)}" 
+                                   onchange="onPriceChange('${key}', this)"
+                                   class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-right focus:border-brand-500 focus:outline-none">
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    });
+    tbody.innerHTML = html;
 }

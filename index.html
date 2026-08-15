@@ -1203,114 +1203,109 @@
 
     <!-- TAB 3: Catálogo & Controle de Estoque -->
     <div id="gtab-produtos" class="gtab-content" style="display: none;">
-        <section class="kpi-grid">
-            <div class="kpi-card income">
-                <div class="kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
-                <div class="kpi-content">
-                    <span class="kpi-label">Produtos Cadastrados</span>
-                    <h2 id="kpiGraficaTotalProdutos">0</h2>
-                    <span class="kpi-subtext" id="kpiGraficaTiposCount">0 itens no estoque</span>
-                </div>
-            </div>
-            <div class="kpi-card fuel">
-                <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                <div class="kpi-content">
-                    <span class="kpi-label">Alerta de Estoque Mínimo</span>
-                    <h2 id="kpiGraficaAlertasEstoque">0</h2>
-                    <span class="kpi-subtext" style="color:var(--danger-color)">Itens com qtd crítica</span>
-                </div>
-            </div>
-            <div class="kpi-card profit">
-                <div class="kpi-icon"><i class="fa-solid fa-vault"></i></div>
-                <div class="kpi-content">
-                    <span class="kpi-label">Valor em Custo de Estoque</span>
-                    <h2 id="kpiGraficaEstoqueCusto">R$ 0,00</h2>
-                    <span class="kpi-subtext" id="kpiGraficaEstoqueVenda">Potencial Venda: R$ 0,00</span>
-                </div>
-            </div>
-        </section>
-
-        <section class="card-box" style="margin-top:0">
-            <div class="card-header table-header-flex">
+        <div class="grafica-pdv-wrapper bg-slate-900 text-slate-200 flex flex-col overflow-hidden" style="min-height: 80vh; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+            
+            <header class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-850 shrink-0">
                 <div>
-                    <h3><i class="fa-solid fa-box"></i> Gerenciar Catálogo & Estoque da Gráfica</h3>
-                    <p class="section-desc">Cadastre papéis, cartões, panfletos, ímãs e insumos com custo, preço e alerta mínimo.</p>
+                    <h2 class="text-xl font-bold text-white"><i class="fa-solid fa-boxes-stacked text-brand-500 mr-2"></i>Catálogo e Precificação</h2>
+                    <p class="text-sm text-slate-400 mt-1">Configure o preço exato de cada variação de produto para o Balcão.</p>
                 </div>
-                <button id="openAddGraficaProdutoBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Novo Produto / Insumo</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="resetPricesToDefault()" class="px-4 py-2 bg-slate-800 text-slate-300 hover:text-white rounded border border-slate-700 transition text-sm cursor-pointer">
+                        <i class="fa-solid fa-rotate-left mr-2"></i>Restaurar Padrões
+                    </button>
+                    <button type="button" onclick="saveGraficaPrices()" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded shadow-lg transition flex items-center text-sm cursor-pointer border-none">
+                        <i class="fa-solid fa-floppy-disk mr-2"></i>Salvar Tabela
+                    </button>
+                </div>
+            </header>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-slate-800 bg-slate-900 px-6 shrink-0 pt-4 gap-4">
+                <button type="button" onclick="switchCatalogTab('matriz')" id="btnTabMatriz" class="px-4 py-3 text-sm font-medium border-b-2 border-brand-500 text-brand-400 bg-transparent cursor-pointer transition">
+                    <i class="fa-solid fa-layer-group mr-2"></i>Tiragens (Panfleto/Cartão)
+                </button>
+                <button type="button" onclick="switchCatalogTab('unidade')" id="btnTabUnidade" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 bg-transparent hover:text-slate-200 cursor-pointer transition">
+                    <i class="fa-solid fa-id-badge mr-2"></i>Unidades (Crachá)
+                </button>
+                <button type="button" onclick="switchCatalogTab('m2')" id="btnTabM2" class="px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 bg-transparent hover:text-slate-200 cursor-pointer transition">
+                    <i class="fa-solid fa-scroll mr-2"></i>M² (Lona/Adesivo)
+                </button>
             </div>
 
-            <!-- Form de Cadastro / Edição de Produto Gráfico -->
-            <div id="graficaProdutoFormWrapper" class="inline-form-wrapper hidden">
-                <form id="graficaProdutoForm" class="entry-form">
-                    <input type="hidden" id="graficaProdutoId">
-                    <div class="form-row">
-                        <div class="form-group" style="flex:2;">
-                            <label for="graficaProdutoNome">Nome do Produto / Serviço *</label>
-                            <input type="text" id="graficaProdutoNome" placeholder="Ex: Cartão de Visita 9x5cm Verniz Local" required class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="graficaProdutoCategoria">Categoria</label>
-                            <select id="graficaProdutoCategoria" class="form-control">
-                                <option value="Cartão de Visita">📇 Cartão de Visita</option>
-                                <option value="Panfleto / Folheto">📄 Panfleto / Folheto</option>
-                                <option value="Ímã de Geladeira">🧲 Ímã de Geladeira</option>
-                                <option value="Talão / Bloco">📑 Talão / Bloco de Notas</option>
-                                <option value="Plotter / Banner">📜 Plotter / Banner / Adesivo</option>
-                                <option value="Outros">📦 Outros</option>
+            <!-- Tab Contents -->
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-950 relative">
+                
+                <!-- Matriz Tab -->
+                <div id="catalogTabMatriz" class="space-y-6">
+                    <div class="flex gap-4 mb-4">
+                        <div class="w-64 shrink-0">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Produto Principal</label>
+                            <select id="catalogFilterProd" class="w-full bg-slate-800 rounded-lg p-2 text-sm text-white border border-slate-700 outline-none focus:ring-2 focus:ring-brand-500" onchange="renderCatalogMatrix()">
+                                <option value="panfleto">Panfleto / Folheto</option>
+                                <option value="cartao">Cartão de Visita</option>
+                                <option value="talao">Talão / Receituário</option>
                             </select>
                         </div>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="graficaProdutoCusto">Custo Unitário / Produção (R$) *</label>
-                            <input type="number" step="0.01" id="graficaProdutoCusto" placeholder="0.00" required class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="graficaProdutoMargem">Margem Lucro Desejada (%)</label>
-                            <input type="number" step="0.1" id="graficaProdutoMargem" placeholder="Ex: 100" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="graficaProdutoPreco">Preço Venda Final (R$) *</label>
-                            <input type="number" step="0.01" id="graficaProdutoPreco" placeholder="0.00" required class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="graficaProdutoEstoque">Qtd Estoque *</label>
-                            <input type="number" id="graficaProdutoEstoque" placeholder="0" required class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="graficaProdutoEstoqueMin">Estoque Mínimo (Alerta)</label>
-                            <input type="number" id="graficaProdutoEstoqueMin" value="5" placeholder="5" class="form-control">
-                        </div>
+                    
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-slate-850 border-b border-slate-800 text-slate-400">
+                                <tr>
+                                    <th class="p-3 font-semibold">Tamanho</th>
+                                    <th class="p-3 font-semibold">Papel</th>
+                                    <th class="p-3 font-semibold">Cor</th>
+                                    <th class="p-3 font-semibold">Tiragem</th>
+                                    <th class="p-3 font-semibold w-40 text-right">Preço Venda (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="catalogMatrixBody" class="divide-y divide-slate-800">
+                                <!-- Rendered by JS -->
+                            </tbody>
+                        </table>
                     </div>
+                </div>
 
-                    <div class="form-row" style="margin-top:10px;">
-                        <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-floppy-disk"></i> Salvar Produto</button>
-                        <button type="button" id="cancelGraficaProdutoBtn" class="btn btn-outline">Cancelar</button>
+                <!-- Unidades Tab -->
+                <div id="catalogTabUnidade" class="hidden">
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-slate-850 border-b border-slate-800 text-slate-400">
+                                <tr>
+                                    <th class="p-3 font-semibold">Produto</th>
+                                    <th class="p-3 font-semibold">Material / Tamanho</th>
+                                    <th class="p-3 font-semibold">Cor</th>
+                                    <th class="p-3 font-semibold w-40 text-right">Preço Unit. (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="catalogUnidadeBody" class="divide-y divide-slate-800">
+                                <!-- Rendered by JS -->
+                            </tbody>
+                        </table>
                     </div>
-                </form>
-            </div>
+                </div>
 
-            <div class="table-responsive" style="margin-top: 15px;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Produto / Serviço</th>
-                            <th>Categoria</th>
-                            <th>Custo Unit.</th>
-                            <th>Preço Venda</th>
-                            <th>Margem (%)</th>
-                            <th>Qtd Estoque</th>
-                            <th>Status Estoque</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="graficaProdutosTableBody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
+                <!-- M2 Tab -->
+                <div id="catalogTabM2" class="hidden">
+                    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-slate-850 border-b border-slate-800 text-slate-400">
+                                <tr>
+                                    <th class="p-3 font-semibold">Material / Mídia</th>
+                                    <th class="p-3 font-semibold">Categoria</th>
+                                    <th class="p-3 font-semibold w-40 text-right">Preço por M² (R$)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="catalogM2Body" class="divide-y divide-slate-800">
+                                <!-- Rendered by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
-        </section>
+        </div>
     </div>
 
     <!-- TAB 4: Despesas Operacionais e Fixas da Gráfica -->
