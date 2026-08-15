@@ -2770,29 +2770,45 @@ function renderGraficaVendasTable() {
     const filtered = graficaVendas.filter(e => monthKey(e.data) === m);
 
     if (!filtered.length) {
-        tbody.innerHTML = emptyRow(10, 'Nenhum pedido ou venda no período.');
+        tbody.innerHTML = emptyRow(11, 'Nenhum pedido ou venda no período.');
         return;
     }
 
     tbody.innerHTML = filtered.map(v => {
         const st = v.status || 'Entregue';
-        const stColor = st === 'Pendente Aprovação' ? 'badge-warning' : (st === 'Pendente Entrega' ? 'badge-info' : 'badge-success');
-        
+        const faltaPagar = (v.faltaPagar !== undefined) ? v.faltaPagar : v.precoTotal;
+        const isPago = faltaPagar <= 0.01;
+
+        // Cor da linha baseada no pagamento
+        const rowStyle = isPago
+            ? 'border-left: 3px solid #16a34a; background: rgba(22,163,74,0.06);'
+            : 'border-left: 3px solid #dc2626; background: rgba(220,38,38,0.06);';
+
+        const faltaDisplay = isPago
+            ? `<span style="color:#4ade80; font-weight:700;">✓ Pago</span>`
+            : `<span style="color:#f87171; font-weight:700;">${fmtR(faltaPagar)}</span>`;
+
+        const sinalDisplay = v.sinal > 0 ? fmtR(v.sinal) : `<span class="text-slate-500">—</span>`;
+
         return `
-        <tr>
+        <tr style="${rowStyle}">
             <td>${dateBR(v.data)}</td>
-            <td><strong>${v.cliente || 'Balcão'}</strong></td>
-            <td><span class="badge ${v.tipoItem.includes('Produto') ? 'badge-success' : 'badge-primary'}">${v.tipoItem}</span></td>
-            <td>${v.detalhes} | <strong>Qtd: ${v.qtd}</strong>${v.m2Total ? ` (${v.m2Total.toFixed(2)} m²)` : ''}</td>
-            <td>${fmtR(v.custoTotal)}</td>
+            <td>
+                <strong>${v.cliente || 'Balcão'}</strong>
+                ${v.telefone ? `<br><span style="font-size:0.72rem;color:#94a3b8;"><i class="fa-solid fa-phone" style="font-size:0.65rem;"></i> ${v.telefone}</span>` : ''}
+            </td>
+            <td><span class="badge ${v.tipoItem && v.tipoItem.includes('Produto') ? 'badge-success' : 'badge-primary'}">${v.tipoItem}</span></td>
+            <td style="max-width:200px;font-size:0.8rem;">${v.detalhes} | <strong>Qtd: ${v.qtd}</strong>${v.m2Total ? ` (${v.m2Total.toFixed(2)} m²)` : ''}</td>
             <td><strong>${fmtR(v.precoTotal)}</strong></td>
+            <td>${sinalDisplay}</td>
+            <td>${faltaDisplay}</td>
             <td class="text-success"><strong>+${fmtR(v.lucro)}</strong></td>
             <td><span class="badge badge-secondary">${v.formaPagamento || 'PIX'}</span></td>
             <td>
-                <select class="form-control" style="width:auto; display:inline-block;" onchange="changeGraficaVendaStatus('${v.id}', this.value)">
-                    <option value="Pendente Aprovação" ${st === 'Pendente Aprovação' ? 'selected' : ''}>🟡 Pendente Aprovação</option>
-                    <option value="Pendente Entrega" ${st === 'Pendente Entrega' ? 'selected' : ''}>🟠 Pendente Entrega</option>
-                    <option value="Entregue" ${st === 'Entregue' ? 'selected' : ''}>🟢 Entregue</option>
+                <select class="form-control" style="width:auto; display:inline-block; font-size:0.75rem;" onchange="changeGraficaVendaStatus('${v.id}', this.value)">
+                    <option value="Pendente Aprovação" ${st === 'Pendente Aprovação' ? 'selected' : ''}>⏳ P. Aprovação</option>
+                    <option value="Pendente Entrega" ${st === 'Pendente Entrega' ? 'selected' : ''}>📦 P. Entrega</option>
+                    <option value="Entregue" ${st === 'Entregue' ? 'selected' : ''}>✅ Entregue</option>
                 </select>
             </td>
             <td>
