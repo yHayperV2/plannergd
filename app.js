@@ -1,4 +1,4 @@
-// =====================================================
+﻿// =====================================================
 // STATE
 // =====================================================
 let usersList = [];
@@ -2960,6 +2960,19 @@ window.deleteGraficaDespesaPessoal = function(id) {
     saveGraficaDespesasPessoais();
     renderGraficaApp();
 };
+
+function exportGraficaCsv() {
+    const m = document.getElementById('graficaMonthFilter').value;
+    const vendas = graficaVendas.filter(e => monthKey(e.data) === m);
+
+    let csv = 'Data;Cliente;TipoItem;Detalhes;Quantidade;CustoTotal;PrecoTotal;Lucro;FormaPagamento;Observacoes\n';
+    vendas.forEach(v => {
+        csv += `"${v.data}";"${v.cliente || ''}";"${v.tipoItem}";"${v.detalhes}";${v.qtd};${v.custoTotal.toFixed(2)};${v.precoTotal.toFixed(2)};${v.lucro.toFixed(2)};"${v.formaPagamento}";"${v.obs || ''}"\n`;
+    });
+
+    downloadCSV(csv, `relatorio_grafica_${m}.csv`);
+    showToast('Relatório CSV exportado!', 'success');
+}
 
 // ==========================================
 // CATÁLOGO DINÂMICO & PRECIFICAÇÃO
