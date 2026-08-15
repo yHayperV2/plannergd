@@ -2514,9 +2514,21 @@ window.calculateTotal = function() {
     const total = Math.max(0, subtotal - discountInput);
     const faltaPagar = Math.max(0, total - sinalInput);
 
-    document.getElementById('summarySubtotal').innerText = fmtR(subtotal);
-    document.getElementById('summaryTotalPedido').innerText = fmtR(total);
-    document.getElementById('summaryTotal').innerText = fmtR(faltaPagar);
+    const elSubtotal = document.getElementById('summarySubtotal');
+    if (elSubtotal) elSubtotal.innerText = fmtR(subtotal);
+    
+    const elTotalPedido = document.getElementById('summaryTotalPedido');
+    if (elTotalPedido) elTotalPedido.innerText = fmtR(total);
+    
+    const elTotal = document.getElementById('summaryTotal');
+    if (elTotal) {
+        // Se a pagina antiga estiver cacheada (sem summaryTotalPedido), summaryTotal deve ser o total.
+        // Se a nova estiver carregada, summaryTotal  o Falta Pagar.
+        elTotal.innerText = elTotalPedido ? fmtR(faltaPagar) : fmtR(total);
+    }
+    
+    const elFaltaPagarOld = document.getElementById('summaryFaltaPagar');
+    if (elFaltaPagarOld) elFaltaPagarOld.innerText = fmtR(faltaPagar);
 };
 
 window.finalizeSale = function() {
