@@ -1991,6 +1991,36 @@ function loadGraficaPrices() {
         const d = localStorage.getItem(userKey('grafica_costs'));
         graficaCosts = d ? JSON.parse(d) : {};
     }
+
+    // Gera o conjunto de chaves válidas atuais do catálogo
+    const validKeys = new Set();
+    pdvCatalog.forEach(prod => {
+        if (prod.group === 'A') {
+            (prod.tamanhos || []).forEach(t =>
+                (prod.papel || []).forEach(p =>
+                    (prod.cores || []).forEach(c =>
+                        (prod.tiragens || []).forEach(q => validKeys.add(`${prod.id}_${t}_${p}_${c}_${q}`))
+                    )
+                )
+            );
+        } else if (prod.group === 'B') {
+            (prod.tamanhos || []).forEach(t =>
+                (prod.papel || []).forEach(p =>
+                    (prod.cores || []).forEach(c => validKeys.add(`${prod.id}_${t}_${p}_${c}`))
+                )
+            );
+        } else if (prod.group === 'C') {
+            (prod.materiais || []).forEach(m => validKeys.add(`${prod.id}_${m}`));
+        }
+    });
+
+    // Remove chaves que não existem mais no catálogo atual
+    for (const k of Object.keys(graficaPrices)) {
+        if (!validKeys.has(k)) delete graficaPrices[k];
+    }
+    for (const k of Object.keys(graficaCosts)) {
+        if (!validKeys.has(k)) delete graficaCosts[k];
+    }
 }
 function saveGraficaPrices() {
     graficaSettings.prices = graficaPrices;
@@ -2157,7 +2187,7 @@ const pdvCatalog = [
         name: 'Panfleto / Folheto',
         icon: 'fa-file-lines',
         group: 'A',
-        papel: ['Couchê 150g'],
+        papel: ['Couchê 90g', 'Couchê 150g'],
         tamanhos: ['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'],
         cores: ['4x0', '4x1', '4x4'],
         tiragens: [1000, 2500, 5000, 10000],
@@ -2173,13 +2203,13 @@ const pdvCatalog = [
         name: 'Cartão de Visita',
         icon: 'fa-address-card',
         group: 'A',
-        papel: ['Couchê 250g'],
-        tamanhos: ['9x4cm'],
+        papel: ['Couchê 250g', 'Couchê 300g'],
+        tamanhos: ['9x5cm'],
         cores: ['4x0', '4x1', '4x4'],
-        tiragens: [1000, 2500, 5000, 10000],
+        tiragens: [1000, 3000, 5000, 10000],
         calcPrice: (tamanho, papel, cor, tiragem) => {
             const cBase = cor === '4x4' ? 1.5 : (cor === '4x1' ? 1.2 : 1);
-            const tiragemBase = { 1000: 45, 2500: 90, 5000: 150, 10000: 250 };
+            const tiragemBase = { 1000: 45, 3000: 90, 5000: 150, 10000: 250 };
             return (tiragemBase[tiragem] || 45) * cBase;
         }
     },
@@ -2207,7 +2237,7 @@ const pdvCatalog = [
         icon: 'fa-id-badge',
         group: 'B',
         papel: ['PVC 0.76mm'],
-        tamanhos: ['9x4cm'],
+        tamanhos: ['9x5cm'],
         cores: ['4x0', '4x4'],
         calcPrice: (tamanho, papel, cor, qtd) => {
             const cBase = cor === '4x4' ? 8 : 5;
@@ -2913,8 +2943,22 @@ function renderGraficaDRE() {
     document.getElementById('dreRetiradasPessoais').textContent = fmtR(retiradasPessoais);
 
     const elSaldo = document.getElementById('dreSaldoFinal');
-    elSaldo.textContent = fmtR(saldoFinal);
-    elSaldo.className = saldoFinal >= 0 ? 'text-success text-xl font-bold' : 'text-danger text-xl font-bold';
+    if (elSaldo) {
+        elSaldo.textContent = fmtR(saldoFinal);
+        elSaldo.className = saldoFinal >= 0 ? 'text-success text-xl font-bold' : 'text-danger text-xl font-bold';
+    }
+
+    // Atualiza KPIs espelhados na aba "Gastos de Casa"
+    const elSaldoKpi = document.getElementById('kpiSaldoDisponivelGrafica');
+    if (elSaldoKpi) {
+        elSaldoKpi.textContent = fmtR(lucroLiquido);
+        elSaldoKpi.style.color = lucroLiquido >= 0 ? 'var(--brand-400)' : '#f87171';
+    }
+    const elSaldoFinalKpi = document.getElementById('kpiSaldoFinalLivre');
+    if (elSaldoFinalKpi) {
+        elSaldoFinalKpi.textContent = fmtR(saldoFinal);
+        elSaldoFinalKpi.style.color = saldoFinal >= 0 ? '#34d399' : '#f87171';
+    }
 }
 
 function renderGraficaDespesasPessoaisTable() {
