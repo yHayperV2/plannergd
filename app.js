@@ -1972,52 +1972,67 @@ function loadGraficaProdutos() {
 
 function seedGraficaProdutos() {
     const defaultProds = [
-        // Plotter
-        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Branco' },
-        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Transparente' },
-        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Blackout' },
-        { cat: 'Plotter / Banner', n: 'Lona' },
+        // Plotter (Manted for compatibility)
+        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Branco', tipoCalculo: 'm2' },
+        { cat: 'Plotter / Banner', n: 'Lona', tipoCalculo: 'm2' },
         
-        // A4
-        { cat: 'Impressão A4', n: 'Sulfite' },
-        { cat: 'Impressão A4', n: 'Papel Cartão' },
-        { cat: 'Impressão A4', n: 'Papel Fotográfico' },
-        { cat: 'Impressão A4', n: 'Papel Adesivo' },
+        // A4 (Manted for compatibility)
+        { cat: 'Impressão A4', n: 'Sulfite', tipoCalculo: 'a4' },
         
-        // Panfletos
-        ...['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'].flatMap(t => 
-            ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Panfleto / Folheto', n: `Panfleto ${t} Couchê 150g ${c}` }))
-        ),
-        
-        // Cartões
-        ...['9x4cm', '9x5cm'].flatMap(t => 
-            ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Cartão de Visita', n: `Cartão de Visita ${t} Couchê 250g ${c}` }))
-        ),
-        
-        // Talões
-        ...['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'].flatMap(t => 
-            ['Sulfite', 'Sulfite + Copiativo'].flatMap(m => 
-                ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Talão / Bloco', n: `Talão ${t} ${m} ${c}` }))
-            )
-        ),
-        
-        // Crachás
-        ...['4x0', '4x4'].map(c => ({ cat: 'Outros', n: `Crachá PVC 9x4cm 0.76mm ${c}` })),
-        
-        // Cardápios
-        ...['Sulfite', 'Papel Cartão', 'PVC / Plastificado'].flatMap(m => 
-            ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Outros', n: `Cardápio A4 ${m} ${c}` }))
-        )
+        // Matriz Cartão de Visita
+        {
+            cat: 'Cartão de Visita',
+            n: 'Cartão de Visita Couchê 250g 4x0 UV Total',
+            baseName: 'Cartão de Visita',
+            material: 'Couchê 250g',
+            cor: '4x0',
+            cobertura: 'UV Total Frente',
+            tamanho: '9x5 cm',
+            acabamentoIncluso: 'Sem Acabamento',
+            tipoCalculo: 'matriz',
+            precosLote: {
+                "100": { preco: 39, custo: 20 },
+                "250": { preco: 41, custo: 21 },
+                "500": { preco: 47, custo: 24 },
+                "1000": { preco: 66, custo: 30 },
+                "3000": { preco: 191, custo: 80 },
+                "5000": { preco: 306, custo: 130 }
+            }
+        },
+        // Matriz Panfleto
+        {
+            cat: 'Panfleto / Folheto',
+            n: 'Panfleto 10x14 Couchê 150g 4x0',
+            baseName: 'Panfleto',
+            material: 'Couchê 150g',
+            cor: '4x0',
+            cobertura: 'Sem Verniz',
+            tamanho: '10x14 cm',
+            acabamentoIncluso: 'Refile',
+            tipoCalculo: 'matriz',
+            precosLote: {
+                "1000": { preco: 90, custo: 45 },
+                "2500": { preco: 150, custo: 70 },
+                "5000": { preco: 250, custo: 120 }
+            }
+        }
     ];
 
     const newProds = defaultProds.map((p, idx) => ({
-        id: 'seed_' + idx + '_' + Date.now().toString(),
+        id: 'seed_matrix_' + idx + '_' + Date.now().toString(),
         tipo: 'padronizado',
         nome: p.n,
         categoria: p.cat,
-        medidas: '',
-        tipoPapel: '',
-        acabamento: '',
+        tipoCalculo: p.tipoCalculo || 'unitario',
+        baseName: p.baseName || '',
+        material: p.material || '',
+        cor: p.cor || '',
+        cobertura: p.cobertura || '',
+        tamanho: p.tamanho || '',
+        acabamentoIncluso: p.acabamentoIncluso || '',
+        precosLote: p.precosLote || null,
+        
+        // Fallbacks para legado
         custoUnitario: 0,
         margemLucro: 100,
         precoVenda: 0,
@@ -2026,7 +2041,6 @@ function seedGraficaProdutos() {
     }));
 
     graficaProdutos = [...graficaProdutos, ...newProds];
-
     saveGraficaProdutos();
 }
 function saveGraficaProdutos() {
@@ -2120,114 +2134,168 @@ function setupGraficaCalculators() {
     recalculateBalcaoSummary();
 }
 
-window.handleProductSelectionChange = function() {
-    const prodId = document.getElementById('bPadronizadoSelect').value;
-    const prod = graficaProdutos.find(p => p.id === prodId);
+let currentW2pProd = null;
+let currentW2pQtd = null;
+
+window.populateW2PProdutoDropdown = function() {
+    const select = document.getElementById('w2pProduto');
+    if (!select) return;
+    const currentVal = select.value;
     
-    document.getElementById('bLoteGroup').style.display = 'none';
-    document.getElementById('bManualQtdGroup').style.display = 'none';
-    document.getElementById('bPlotterFields').style.display = 'none';
-    document.getElementById('bA4Fields').style.display = 'none';
+    // Filtra produtos para pegar apenas os únicos pelo baseName ou nome
+    const uniqueBases = [];
+    graficaProdutos.forEach(p => {
+        const n = p.baseName || p.nome;
+        if (!uniqueBases.find(x => x.n === n)) {
+            uniqueBases.push({ n, id: p.id, original: p });
+        }
+    });
+
+    select.innerHTML = '<option value="">-- Selecione --</option>' +
+        uniqueBases.map(p => `<option value="${p.id}">${p.n}</option>`).join('');
+    
+    if (currentVal) select.value = currentVal;
+};
+
+window.w2pHandleChange = function(field) {
+    const pId = document.getElementById('w2pProduto').value;
+    const prod = graficaProdutos.find(p => p.id === pId);
+    
+    // Resets
+    document.getElementById('w2pGridArea').style.display = 'none';
+    document.getElementById('w2pPlotterFields').style.display = 'none';
+    document.getElementById('w2pA4Fields').style.display = 'none';
+    currentW2pProd = null;
+    currentW2pQtd = null;
 
     if (!prod) return;
 
-    if (prod.categoria.includes('Plotter')) {
-        document.getElementById('bManualQtdGroup').style.display = 'block';
-        document.getElementById('bPlotterFields').style.display = 'flex';
-    } else if (prod.categoria.includes('A4')) {
-        document.getElementById('bManualQtdGroup').style.display = 'block';
-        document.getElementById('bA4Fields').style.display = 'flex';
-    } else if (['Panfleto / Folheto', 'Cartão de Visita', 'Talão / Bloco', 'Ímã de Geladeira'].includes(prod.categoria)) {
-        document.getElementById('bLoteGroup').style.display = 'block';
+    if (prod.tipoCalculo === 'matriz') {
+        currentW2pProd = prod;
+        // In a real cascading scenario, we would filter available options based on selected material, etc.
+        // For this mock, we just populate the fields from the single matched product.
+        document.getElementById('w2pMaterial').innerHTML = `<option value="${prod.material}">${prod.material}</option>`;
+        document.getElementById('w2pCor').innerHTML = `<option value="${prod.cor}">${prod.cor}</option>`;
+        document.getElementById('w2pCobertura').innerHTML = `<option value="${prod.cobertura}">${prod.cobertura}</option>`;
+        document.getElementById('w2pTamanho').innerHTML = `<option value="${prod.tamanho}">${prod.tamanho}</option>`;
+        document.getElementById('w2pAcabamento').innerHTML = `<option value="${prod.acabamentoIncluso}">${prod.acabamentoIncluso}</option>`;
+        
+        ['Material', 'Cor', 'Cobertura', 'Tamanho', 'Acabamento'].forEach(id => {
+            document.getElementById('w2p' + id).disabled = false;
+        });
+
+        // Populate Grid
+        const grid = document.getElementById('w2pQtdGrid');
+        grid.innerHTML = '';
+        if (prod.precosLote) {
+            Object.keys(prod.precosLote).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(qtd => {
+                const prc = prod.precosLote[qtd].preco;
+                grid.innerHTML += `
+                    <label style="display:flex; justify-content:space-between; padding:8px; border:1px solid var(--border-color); border-radius:6px; cursor:pointer; align-items:center;">
+                        <span><input type="radio" name="w2pLote" value="${qtd}" onchange="window.w2pSelectLote('${qtd}')"> ${parseInt(qtd).toLocaleString('pt-BR')}</span>
+                        <strong style="color:var(--accent-rose);">R$ ${prc.toFixed(2).replace('.',',')}</strong>
+                    </label>
+                `;
+            });
+        }
+        
+        document.getElementById('w2pGridArea').style.display = 'block';
+
+    } else if (prod.tipoCalculo === 'm2' || prod.categoria.includes('Plotter')) {
+        currentW2pProd = prod;
+        document.getElementById('w2pPlotterFields').style.display = 'flex';
+        document.getElementById('w2pGridArea').style.display = 'block';
+        document.getElementById('w2pQtdColumn').style.display = 'none'; // Hide grid, use manual qtd
     } else {
-        document.getElementById('bManualQtdGroup').style.display = 'block';
+        currentW2pProd = prod;
+        document.getElementById('w2pA4Fields').style.display = 'flex';
+        document.getElementById('w2pGridArea').style.display = 'block';
+        document.getElementById('w2pQtdColumn').style.display = 'none';
     }
-    
-    recalculateBalcaoSummary();
+
+    w2pRecalculate();
 };
 
-window.recalculateBalcaoSummary = function() {
-    let custoTotal = 0;
-    let precoTotal = 0;
+window.w2pSelectLote = function(qtd) {
+    currentW2pQtd = qtd;
+    w2pRecalculate();
+};
 
-    const prodId = document.getElementById('bPadronizadoSelect').value;
-    const prod = graficaProdutos.find(p => p.id === prodId);
-    if (prod) {
-        if (prod.categoria.includes('Plotter')) {
-            const l = parseFloat(document.getElementById('bPlotterLargura').value) || 0;
-            const a = parseFloat(document.getElementById('bPlotterAltura').value) || 0;
-            const q = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
-            const m2 = (l * a) / 10000;
-            custoTotal = prod.custoUnitario * m2 * q;
-            precoTotal = prod.precoVenda * m2 * q;
-        } else if (['Panfleto / Folheto', 'Cartão de Visita', 'Talão / Bloco', 'Ímã de Geladeira'].includes(prod.categoria)) {
-            const q = parseInt(document.getElementById('bLoteSelect').value) || 1000;
-            custoTotal = prod.custoUnitario * q;
-            precoTotal = prod.precoVenda * q;
-        } else {
-            const q = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
-            custoTotal = prod.custoUnitario * q;
-            precoTotal = prod.precoVenda * q;
-        }
+window.w2pRecalculate = function() {
+    if (!currentW2pProd) return;
+    
+    let basePreco = 0;
+    let baseCusto = 0;
+
+    if (currentW2pProd.tipoCalculo === 'matriz' && currentW2pQtd && currentW2pProd.precosLote[currentW2pQtd]) {
+        basePreco = currentW2pProd.precosLote[currentW2pQtd].preco;
+        baseCusto = currentW2pProd.precosLote[currentW2pQtd].custo;
+    } else if (currentW2pProd.tipoCalculo === 'm2' || currentW2pProd.categoria.includes('Plotter')) {
+        const l = parseFloat(document.getElementById('w2pPlotterLargura').value) || 0;
+        const a = parseFloat(document.getElementById('w2pPlotterAltura').value) || 0;
+        const q = parseInt(document.getElementById('w2pPlotterQtd').value) || 1;
+        const m2 = (l * a) / 10000;
+        basePreco = currentW2pProd.precoVenda * m2 * q;
+        baseCusto = currentW2pProd.custoUnitario * m2 * q;
+    } else {
+        const q = parseInt(document.getElementById('w2pA4Qtd').value) || 1;
+        basePreco = currentW2pProd.precoVenda * q;
+        baseCusto = currentW2pProd.custoUnitario * q;
     }
 
-    const lucro = precoTotal - custoTotal;
+    // Opcionais
+    let opsVal = 0;
+    document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]:checked').forEach(cb => {
+        opsVal += parseFloat(cb.value);
+    });
 
-    const elCusto = document.getElementById('bSumCusto');
-    const elPreco = document.getElementById('bSumPreco');
-    const elLucro = document.getElementById('bSumLucro');
-
-    if (elCusto) elCusto.innerText = fmtR(custoTotal);
-    if (elPreco) elPreco.innerText = fmtR(precoTotal);
-    if (elLucro) {
-        elLucro.innerText = lucro >= 0 ? `+${fmtR(lucro)}` : fmtR(lucro);
-        elLucro.className = lucro >= 0 ? 'text-primary fs-1-1' : 'text-danger fs-1-1';
-    }
+    const total = basePreco + opsVal;
+    
+    document.getElementById('w2pValorTotal').innerText = fmtR(total);
+    // Guarda o custo calculado em um dataset invisível no elemento total, ou recalcula no submit
+    document.getElementById('w2pValorTotal').dataset.custo = (baseCusto).toString(); 
+    document.getElementById('w2pValorTotal').dataset.preco = (total).toString(); 
 };
 
 function handleBalcaoCheckoutSubmit() {
-    const prodId = document.getElementById('bPadronizadoSelect').value;
-    if (!prodId) {
-        showToast('Por favor, selecione um produto do catálogo.', 'error');
+    if (!currentW2pProd) {
+        showToast('Selecione e configure um produto primeiro.', 'error');
         return;
     }
 
-    const prod = graficaProdutos.find(p => p.id === prodId);
-    if (!prod) return;
-
     let qtd = 1;
-    let detalhes = prod.nome;
-    let custoTotal = 0;
-    let precoTotal = 0;
+    let detalhes = currentW2pProd.nome;
+    let custoTotal = parseFloat(document.getElementById('w2pValorTotal').dataset.custo) || 0;
+    let precoTotal = parseFloat(document.getElementById('w2pValorTotal').dataset.preco) || 0;
     let m2Total = 0;
 
-    if (prod.categoria.includes('Plotter')) {
-        const l = parseFloat(document.getElementById('bPlotterLargura').value) || 0;
-        const a = parseFloat(document.getElementById('bPlotterAltura').value) || 0;
-        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
-        const m2 = (l * a) / 10000;
-        m2Total = m2 * qtd;
-        custoTotal = prod.custoUnitario * m2 * qtd;
-        precoTotal = prod.precoVenda * m2 * qtd;
-        detalhes += ` (${l}x${a}cm)`;
-    } else if (['Panfleto / Folheto', 'Cartão de Visita', 'Talão / Bloco', 'Ímã de Geladeira'].includes(prod.categoria)) {
-        qtd = parseInt(document.getElementById('bLoteSelect').value) || 1000;
-        custoTotal = prod.custoUnitario * qtd;
-        precoTotal = prod.precoVenda * qtd;
+    // Build details string based on type
+    if (currentW2pProd.tipoCalculo === 'matriz') {
+        if (!currentW2pQtd) {
+            showToast('Selecione uma quantidade na grade.', 'error');
+            return;
+        }
+        qtd = parseInt(currentW2pQtd);
         detalhes += ` (Lote de ${qtd})`;
-    } else if (prod.categoria.includes('A4')) {
-        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
-        const gram = document.getElementById('bA4Gramatura').value || 'Padrão';
-        custoTotal = prod.custoUnitario * qtd;
-        precoTotal = prod.precoVenda * qtd;
-        detalhes += ` (${gram}g)`;
+    } else if (currentW2pProd.tipoCalculo === 'm2' || currentW2pProd.categoria.includes('Plotter')) {
+        const l = parseFloat(document.getElementById('w2pPlotterLargura').value) || 0;
+        const a = parseFloat(document.getElementById('w2pPlotterAltura').value) || 0;
+        qtd = parseInt(document.getElementById('w2pPlotterQtd').value) || 1;
+        m2Total = ((l * a) / 10000) * qtd;
+        detalhes += ` (${l}x${a}cm)`;
     } else {
-        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
-        custoTotal = prod.custoUnitario * qtd;
-        precoTotal = prod.precoVenda * qtd;
+        qtd = parseInt(document.getElementById('w2pA4Qtd').value) || 1;
+        const g = document.getElementById('w2pA4Gramatura').value || 'Padrão';
+        detalhes += ` (${g}g)`;
     }
-    
-    prod.qtdEstoque = Math.max(0, prod.qtdEstoque - qtd);
+
+    // Add optionals text
+    document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]:checked').forEach(cb => {
+        detalhes += ` + ${cb.parentElement.innerText.trim()}`;
+    });
+
+    // Diminui estoque, mas permite negativo
+    currentW2pProd.qtdEstoque = Math.max(0, currentW2pProd.qtdEstoque - qtd);
     saveGraficaProdutos();
     
     const cliente = document.getElementById('bClienteNome').value.trim() || 'Balcão';
@@ -2238,8 +2306,8 @@ function handleBalcaoCheckoutSubmit() {
         id: Date.now().toString(),
         data: todayISO(),
         cliente,
-        tipoItem: prod.categoria,
-        produtoId: prod.id,
+        tipoItem: currentW2pProd.categoria,
+        produtoId: currentW2pProd.id,
         detalhes,
         m2Total: m2Total > 0 ? m2Total : null,
         qtd,
@@ -2256,7 +2324,18 @@ function handleBalcaoCheckoutSubmit() {
     showToast(`Pedido registrado com sucesso!`, 'success');
 
     document.getElementById('graficaBalcaoForm').reset();
-    handleProductSelectionChange();
+    document.querySelectorAll('#w2pOpcionaisList input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.getElementById('w2pGridArea').style.display = 'none';
+    document.getElementById('w2pPlotterFields').style.display = 'none';
+    document.getElementById('w2pA4Fields').style.display = 'none';
+    currentW2pProd = null;
+    currentW2pQtd = null;
+    document.getElementById('w2pProduto').value = '';
+    ['Material', 'Cor', 'Cobertura', 'Tamanho', 'Acabamento'].forEach(id => {
+        const el = document.getElementById('w2p' + id);
+        if (el) el.disabled = true;
+    });
+
     renderGraficaApp();
 }
 
@@ -2445,7 +2524,7 @@ function setupGraficaSettingsModal() {
 // ----- Renderers -----
 function renderGraficaApp() {
     populateGraficaMonthFilter();
-    populateVendaBalcaoProdutosDropdown();
+    populateW2PProdutoDropdown();
     renderGraficaVendasTable();
     renderGraficaProdutosTable();
     renderGraficaDespesasOpTable();
