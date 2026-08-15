@@ -62,6 +62,7 @@ let graficaCart = [];
 let graficaDespesasOp = [];
 let graficaDespesasPessoais = [];
 let graficaPrices = {};
+let graficaCosts = {};
 let editingGraficaProdutoId = null;
 let editingGraficaDespesaOpId = null;
 let editingGraficaDespesaPessoalId = null;
@@ -1984,11 +1985,18 @@ function loadGraficaPrices() {
         const d = localStorage.getItem(userKey('grafica_prices'));
         graficaPrices = d ? JSON.parse(d) : {};
     }
+    if (graficaSettings && graficaSettings.costs) {
+        graficaCosts = graficaSettings.costs;
+    } else {
+        const d = localStorage.getItem(userKey('grafica_costs'));
+        graficaCosts = d ? JSON.parse(d) : {};
+    }
 }
 function saveGraficaPrices() {
     graficaSettings.prices = graficaPrices;
+    graficaSettings.costs = graficaCosts;
     saveGraficaSettings();
-    showToast('Tabela de Preços salva!', 'success');
+    showToast('Tabela de Preços e Custos salva!', 'success');
 }
 
 function seedGraficaProdutos() {
@@ -2363,29 +2371,39 @@ window.recalculateConfig = function() {
     if (!pdvCurrentProduct) return;
 
     let calc = 0;
+    let costCalc = 0;
     if (pdvCurrentProduct.group === 'A') {
         const key = `${pdvCurrentProduct.id}_${pdvCurrentConfig.tamanho}_${pdvCurrentConfig.papel}_${pdvCurrentConfig.cor}_${pdvCurrentConfig.tiragem}`;
         const defaultCalc = pdvCurrentProduct.calcPrice(pdvCurrentConfig.tamanho, pdvCurrentConfig.papel, pdvCurrentConfig.cor, pdvCurrentConfig.tiragem);
+        const defaultCost = defaultCalc * 0.4;
         calc = getPriceFor(key, defaultCalc);
+        costCalc = getCostFor(key, defaultCost);
     } 
     else if (pdvCurrentProduct.group === 'B') {
         const key = `${pdvCurrentProduct.id}_${pdvCurrentConfig.tamanho}_${pdvCurrentConfig.papel}_${pdvCurrentConfig.cor}`;
-        // Para o grupo B, o preço na tabela é unitário. O cálculo padrão multiplica pela QTD.
         const cBase = pdvCurrentProduct.baseCores ? pdvCurrentProduct.baseCores[pdvCurrentConfig.cor] : 1;
         const pBase = pdvCurrentProduct.basePrecoUnidade || 1;
         const defaultUnitPrice = cBase * pBase;
+        const defaultUnitCost = defaultUnitPrice * 0.4;
         
         const unitPrice = getPriceFor(key, defaultUnitPrice);
+        const unitCost = getCostFor(key, defaultUnitCost);
         calc = unitPrice * pdvCurrentConfig.qtd;
+        costCalc = unitCost * pdvCurrentConfig.qtd;
     } 
     else if (pdvCurrentProduct.group === 'C') {
         const key = `${pdvCurrentProduct.id}_${pdvCurrentConfig.papel}`;
         const defaultM2Price = pdvCurrentProduct.precoM2 || 45;
+        const defaultM2Cost = defaultM2Price * 0.4;
         const m2Price = getPriceFor(key, defaultM2Price);
+        const m2Cost = getCostFor(key, defaultM2Cost);
+        
         calc = (pdvCurrentConfig.largura * pdvCurrentConfig.altura) * m2Price * pdvCurrentConfig.qtd;
+        costCalc = (pdvCurrentConfig.largura * pdvCurrentConfig.altura) * m2Cost * pdvCurrentConfig.qtd;
     }
     
     pdvCurrentSubtotal = calc;
+    pdvCurrentCost = costCalc;
     document.getElementById('itemSubtotal').innerText = fmtR(pdvCurrentSubtotal);
 };
 
@@ -2419,9 +2437,9 @@ window.handleAddToCart = function() {
         qtd: itemQtd,
         isLote: pdvCurrentProduct.group === 'A',
         m2Total: m2Total,
-        custoTotal: pdvCurrentSubtotal * 0.4, // Custo fake (40% do venda) para DRE
+        custoTotal: pdvCurrentCost,
         precoTotal: pdvCurrentSubtotal,
-        lucro: pdvCurrentSubtotal * 0.6
+        lucro: pdvCurrentSubtotal - pdvCurrentCost
     };
 
     graficaCart.push(cartItem);
@@ -2491,11 +2509,14 @@ window.renderGraficaCart = function() {
 window.calculateTotal = function() {
     const subtotal = graficaCart.reduce((acc, curr) => acc + curr.precoTotal, 0);
     const discountInput = parseFloat(document.getElementById('summaryDiscount').value) || 0;
+    const sinalInput = parseFloat(document.getElementById('summarySinal').value) || 0;
     
     const total = Math.max(0, subtotal - discountInput);
+    const faltaPagar = Math.max(0, total - sinalInput);
 
     document.getElementById('summarySubtotal').innerText = fmtR(subtotal);
     document.getElementById('summaryTotal').innerText = fmtR(total);
+    document.getElementById('summaryFaltaPagar').innerText = fmtR(faltaPagar);
 };
 
 window.finalizeSale = function() {
@@ -2515,15 +2536,18 @@ window.finalizeSale = function() {
     const formaPagamento = document.getElementById('paymentMethod').value;
     const orderStatus = document.getElementById('orderStatus').value;
     const desconto = parseFloat(document.getElementById('summaryDiscount').value) || 0;
+    const sinal = parseFloat(document.getElementById('summarySinal').value) || 0;
     
     const dataVenda = todayISO();
     
-    // Distribui o desconto proporcionalmente para não quebrar o DRE
+    // Distribui o desconto e sinal proporcionalmente para não quebrar o DRE ou relatórios individuais
     const subtotalGeral = graficaCart.reduce((acc, curr) => acc + curr.precoTotal, 0);
     const taxaDesconto = subtotalGeral > 0 ? (desconto / subtotalGeral) : 0;
+    const taxaSinal = subtotalGeral > 0 ? (sinal / subtotalGeral) : 0;
 
     graficaCart.forEach(item => {
         const precoComDesconto = item.precoTotal - (item.precoTotal * taxaDesconto);
+        const sinalItem = subtotalGeral > 0 ? (precoComDesconto * (sinal / (subtotalGeral - desconto))) : 0;
         const lucroFinal = precoComDesconto - item.custoTotal;
         
         const venda = {
@@ -2538,6 +2562,8 @@ window.finalizeSale = function() {
             qtd: item.qtd,
             custoTotal: item.custoTotal,
             precoTotal: precoComDesconto,
+            sinal: isNaN(sinalItem) ? 0 : sinalItem,
+            faltaPagar: isNaN(precoComDesconto - sinalItem) ? 0 : (precoComDesconto - sinalItem),
             lucro: lucroFinal,
             formaPagamento,
             obs: item.obs,
@@ -2553,6 +2579,7 @@ window.finalizeSale = function() {
     document.getElementById('clientName').value = '';
     document.getElementById('clientPhone').value = '';
     document.getElementById('summaryDiscount').value = 0;
+    document.getElementById('summarySinal').value = 0;
     renderGraficaCart();
     renderGraficaApp();
 };
@@ -2756,6 +2783,8 @@ window.viewOrderDetails = function(id) {
             <hr class="border-slate-700">
             <p><strong>Forma de Pagamento:</strong> ${v.formaPagamento || 'PIX'}</p>
             <p><strong>Preço Final:</strong> <span class="text-white font-bold">${fmtR(v.precoTotal)}</span></p>
+            <p><strong>Sinal Pago:</strong> <span class="text-white">${fmtR(v.sinal || 0)}</span></p>
+            <p><strong>Falta Pagar:</strong> <span class="text-brand-400 font-bold">${fmtR(v.faltaPagar || 0)}</span></p>
             <p><strong>Custo Total:</strong> ${fmtR(v.custoTotal)}</p>
             <p><strong>Lucro Estimado:</strong> <span class="text-success">+${fmtR(v.lucro)}</span></p>
         </div>
@@ -2866,14 +2895,14 @@ function renderGraficaDRE() {
 
     const elLiquido = document.getElementById('dreLucroLiquido');
     elLiquido.textContent = fmtR(lucroLiquido);
-    elLiquido.className = lucroLiquido >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
+    elLiquido.className = lucroLiquido >= 0 ? 'text-success text-lg font-bold' : 'text-danger text-lg font-bold';
 
     document.getElementById('dreMargemLiquida').textContent = `${margemLiquida.toFixed(1)}%`;
     document.getElementById('dreRetiradasPessoais').textContent = fmtR(retiradasPessoais);
 
     const elSaldo = document.getElementById('dreSaldoFinal');
     elSaldo.textContent = fmtR(saldoFinal);
-    elSaldo.className = saldoFinal >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
+    elSaldo.className = saldoFinal >= 0 ? 'text-success text-xl font-bold' : 'text-danger text-xl font-bold';
 }
 
 function renderGraficaDespesasPessoaisTable() {
@@ -3030,6 +3059,13 @@ function getPriceFor(key, defaultPrice) {
     return defaultPrice;
 }
 
+function getCostFor(key, defaultCost) {
+    if (graficaCosts[key] !== undefined) {
+        return graficaCosts[key];
+    }
+    return defaultCost;
+}
+
 window.onPriceChange = function(key, el) {
     const val = parseFloat(el.value);
     if (!isNaN(val)) {
@@ -3039,9 +3075,19 @@ window.onPriceChange = function(key, el) {
     }
 }
 
+window.onCostChange = function(key, el) {
+    const val = parseFloat(el.value);
+    if (!isNaN(val)) {
+        graficaCosts[key] = val;
+    } else {
+        delete graficaCosts[key];
+    }
+}
+
 window.resetPricesToDefault = function() {
-    if (confirm('Tem certeza que deseja apagar todos os preços personalizados e voltar às fórmulas automáticas padrão?')) {
+    if (confirm('Tem certeza que deseja apagar todos os preços e custos personalizados e voltar às fórmulas automáticas padrão?')) {
         graficaPrices = {};
+        graficaCosts = {};
         saveGraficaPrices();
         renderCatalogMatrix();
         renderCatalogUnidade();
@@ -3101,8 +3147,10 @@ window.renderCatalogMatrix = function() {
             coresArr.forEach(cor => {
                 tiragensArr.forEach(tiragem => {
                     const defaultPrice = prod.calcPrice(tamanho, papel, cor, tiragem);
+                    const defaultCost = defaultPrice * 0.4;
                     const key = `${prod.id}_${tamanho}_${papel}_${cor}_${tiragem}`;
                     const currentPrice = getPriceFor(key, defaultPrice);
+                    const currentCost = getCostFor(key, defaultCost);
                     
                     html += `
                         <tr class="hover:bg-slate-800 transition">
@@ -3110,6 +3158,14 @@ window.renderCatalogMatrix = function() {
                             <td class="p-3 text-slate-300">${papel}</td>
                             <td class="p-3 text-slate-300">${cor}</td>
                             <td class="p-3 text-slate-300 font-medium">${tiragem.toLocaleString('pt-BR')} un</td>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end items-center">
+                                    <span class="text-slate-500 mr-2">R$</span>
+                                    <input type="number" step="0.01" value="${currentCost.toFixed(2)}" 
+                                           onchange="onCostChange('${key}', this)"
+                                           class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300 text-right focus:border-brand-500 focus:outline-none">
+                                </div>
+                            </td>
                             <td class="p-3 text-right">
                                 <div class="flex justify-end items-center">
                                     <span class="text-slate-500 mr-2">R$</span>
@@ -3144,14 +3200,24 @@ window.renderCatalogUnidade = function() {
             papelArr.forEach(papel => {
                 coresArr.forEach(cor => {
                     const defaultPrice = prod.calcPrice(tamanho, papel, cor, 1);
+                    const defaultCost = defaultPrice * 0.4;
                     const key = `${prod.id}_${tamanho}_${papel}_${cor}`;
                     const currentPrice = getPriceFor(key, defaultPrice);
+                    const currentCost = getCostFor(key, defaultCost);
                     
                     html += `
                         <tr class="hover:bg-slate-800 transition">
                             <td class="p-3 font-medium text-brand-400">${prod.nome || prod.name}</td>
                             <td class="p-3 text-slate-300">${papel} - ${tamanho}</td>
                             <td class="p-3 text-slate-300">${cor}</td>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end items-center">
+                                    <span class="text-slate-500 mr-2">R$</span>
+                                    <input type="number" step="0.01" value="${currentCost.toFixed(2)}" 
+                                           onchange="onCostChange('${key}', this)"
+                                           class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300 text-right focus:border-brand-500 focus:outline-none">
+                                </div>
+                            </td>
                             <td class="p-3 text-right">
                                 <div class="flex justify-end items-center">
                                     <span class="text-slate-500 mr-2">R$</span>
@@ -3180,13 +3246,23 @@ window.renderCatalogM2 = function() {
         const papelArr = prod.papel || [];
         papelArr.forEach(papel => {
             const defaultPrice = prod.calcPrice(100, 100, prod.precoM2 || 45, 1);
+            const defaultCost = defaultPrice * 0.4;
             const key = `${prod.id}_${papel}`;
             const currentPrice = getPriceFor(key, defaultPrice);
+            const currentCost = getCostFor(key, defaultCost);
             
             html += `
                 <tr class="hover:bg-slate-800 transition">
                     <td class="p-3 font-medium text-brand-400">${papel}</td>
                     <td class="p-3 text-slate-300">${prod.nome || prod.name}</td>
+                    <td class="p-3 text-right">
+                        <div class="flex justify-end items-center">
+                            <span class="text-slate-500 mr-2">R$</span>
+                            <input type="number" step="0.01" value="${currentCost.toFixed(2)}" 
+                                   onchange="onCostChange('${key}', this)"
+                                   class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300 text-right focus:border-brand-500 focus:outline-none">
+                        </div>
+                    </td>
                     <td class="p-3 text-right">
                         <div class="flex justify-end items-center">
                             <span class="text-slate-500 mr-2">R$</span>

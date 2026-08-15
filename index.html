@@ -1131,6 +1131,17 @@
                                     <input type="number" id="summaryDiscount" value="0" min="0" oninput="calculateTotal()" class="w-full bg-slate-800 rounded p-1 text-right text-white border border-slate-700 text-xs h-7">
                                 </div>
                             </div>
+                            <div class="flex justify-between items-center text-slate-400">
+                                <span>Sinal (Pago)</span>
+                                <div class="flex items-center gap-1 w-24">
+                                    <span class="text-xs">R$</span>
+                                    <input type="number" id="summarySinal" value="0" min="0" oninput="calculateTotal()" class="w-full bg-slate-800 rounded p-1 text-right text-white border border-slate-700 text-xs h-7">
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-slate-400 mt-1 pb-2 border-b border-slate-800">
+                                <span>Falta Pagar</span>
+                                <span id="summaryFaltaPagar" class="text-brand-400">R$ 0,00</span>
+                            </div>
                             <div class="flex justify-between items-center text-slate-400 pt-2">
                                 <span>Pagamento</span>
                                 <select id="paymentMethod" class="bg-slate-800 rounded p-1 border border-slate-700 text-white text-xs h-7 outline-none">
@@ -1259,11 +1270,12 @@
                         <table class="w-full text-left border-collapse text-sm">
                             <thead class="bg-slate-850 border-b border-slate-800 text-slate-400">
                                 <tr>
-                                    <th class="p-3 font-semibold">Tamanho</th>
+                                    <th class="p-3 font-semibold text-left">Tamanho</th>
                                     <th class="p-3 font-semibold">Papel</th>
                                     <th class="p-3 font-semibold">Cor</th>
                                     <th class="p-3 font-semibold">Tiragem</th>
-                                    <th class="p-3 font-semibold w-40 text-right">Preço Venda (R$)</th>
+                                    <th class="p-3 font-semibold w-32 text-right">Custo (R$)</th>
+                                    <th class="p-3 font-semibold w-32 text-right">Preço Venda (R$)</th>
                                 </tr>
                             </thead>
                             <tbody id="catalogMatrixBody" class="divide-y divide-slate-800">
@@ -1275,14 +1287,15 @@
 
                 <!-- Unidades Tab -->
                 <div id="catalogTabUnidade" class="hidden">
-                    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                        <table class="w-full text-left border-collapse text-sm">
-                            <thead class="bg-slate-850 border-b border-slate-800 text-slate-400">
+                    <div class="overflow-x-auto bg-slate-900 rounded-lg border border-slate-800 mt-4">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-800 text-slate-400">
                                 <tr>
                                     <th class="p-3 font-semibold">Produto</th>
                                     <th class="p-3 font-semibold">Material / Tamanho</th>
                                     <th class="p-3 font-semibold">Cor</th>
-                                    <th class="p-3 font-semibold w-40 text-right">Preço Unit. (R$)</th>
+                                    <th class="p-3 font-semibold w-32 text-right">Custo Unit. (R$)</th>
+                                    <th class="p-3 font-semibold w-32 text-right">Preço Unit. (R$)</th>
                                 </tr>
                             </thead>
                             <tbody id="catalogUnidadeBody" class="divide-y divide-slate-800">
@@ -1294,13 +1307,14 @@
 
                 <!-- M2 Tab -->
                 <div id="catalogTabM2" class="hidden">
-                    <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-                        <table class="w-full text-left border-collapse text-sm">
-                            <thead class="bg-slate-850 border-b border-slate-800 text-slate-400">
+                    <div class="overflow-x-auto bg-slate-900 rounded-lg border border-slate-800 mt-4">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-800 text-slate-400">
                                 <tr>
                                     <th class="p-3 font-semibold">Material / Mídia</th>
                                     <th class="p-3 font-semibold">Categoria</th>
-                                    <th class="p-3 font-semibold w-40 text-right">Preço por M² (R$)</th>
+                                    <th class="p-3 font-semibold w-32 text-right">Custo M² (R$)</th>
+                                    <th class="p-3 font-semibold w-32 text-right">Preço por M² (R$)</th>
                                 </tr>
                             </thead>
                             <tbody id="catalogM2Body" class="divide-y divide-slate-800">
@@ -1424,43 +1438,35 @@
             </div>
             
             <div class="dre-container">
-                <table class="dre-table">
-                    <tbody>
-                        <tr class="dre-row-header">
-                            <td><strong>1. FATURAMENTO TOTAL (RECEITA BRUTA)</strong></td>
-                            <td class="text-right"><strong id="dreReceitaBruta" class="text-success">R$ 0,00</strong></td>
+                <table class="dre-table w-full text-sm">
+                    <tbody class="divide-y divide-slate-800">
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 text-slate-300"><i class="fa-solid fa-arrow-trend-up text-success mr-2"></i> Receita Total (Vendas)</td>
+                            <td class="p-3 text-right"><strong id="dreReceitaBruta" class="text-success text-lg">R$ 0,00</strong></td>
                         </tr>
-                        <tr class="dre-subrow">
-                            <td>(-) Custo das Mercadorias & Serviços Vendidos (CMV / CSV)</td>
-                            <td class="text-right text-danger" id="dreCmv">R$ 0,00</td>
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 text-slate-400 pl-8"><i class="fa-solid fa-minus text-danger mr-2"></i> Custo dos Materiais (Produção)</td>
+                            <td class="p-3 text-right text-danger" id="dreCmv">R$ 0,00</td>
                         </tr>
-                        <tr class="dre-row-highlight">
-                            <td><strong>2. LUCRO BRUTO (RECEITA - CUSTOS DIRETOS)</strong></td>
-                            <td class="text-right"><strong id="dreLucroBruto">R$ 0,00</strong></td>
+                        <tr class="hover:bg-slate-800 transition bg-slate-850">
+                            <td class="p-3 text-brand-400 font-semibold">(=) Lucro Bruto</td>
+                            <td class="p-3 text-right"><strong id="dreLucroBruto" class="text-brand-400">R$ 0,00</strong> <span id="dreMargemBruta" class="text-xs text-slate-500 ml-1">0%</span></td>
                         </tr>
-                        <tr class="dre-subrow">
-                            <td>Margem Bruta (%)</td>
-                            <td class="text-right" id="dreMargemBruta">0.0%</td>
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 text-slate-400 pl-8"><i class="fa-solid fa-minus text-danger mr-2"></i> Despesas da Loja (Operacionais)</td>
+                            <td class="p-3 text-right text-danger" id="dreDespesasOp">R$ 0,00</td>
                         </tr>
-                        <tr class="dre-subrow">
-                            <td>(-) Despesas Operacionais & Fixas da Gráfica (Loja/Insumos)</td>
-                            <td class="text-right text-danger" id="dreDespesasOp">R$ 0,00</td>
+                        <tr class="hover:bg-slate-800 transition bg-slate-800 border-t-2 border-slate-700">
+                            <td class="p-3 text-white font-bold text-base">(=) Lucro da Loja (Operacional)</td>
+                            <td class="p-3 text-right"><strong id="dreLucroLiquido" class="fs-1-2">R$ 0,00</strong> <span id="dreMargemLiquida" class="text-xs text-slate-500 ml-1">0%</span></td>
                         </tr>
-                        <tr class="dre-row-final">
-                            <td><strong>3. LUCRO LÍQUIDO REAL DA GRÁFICA</strong></td>
-                            <td class="text-right"><strong id="dreLucroLiquido" class="fs-1-2">R$ 0,00</strong></td>
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 text-slate-400 pl-8"><i class="fa-solid fa-house text-warning mr-2"></i> Despesas de Casa (Dívidas Pessoais)</td>
+                            <td class="p-3 text-right text-warning" id="dreRetiradasPessoais">R$ 0,00</td>
                         </tr>
-                        <tr class="dre-subrow">
-                            <td>Margem Líquida Real (%)</td>
-                            <td class="text-right" id="dreMargemLiquida">0.0%</td>
-                        </tr>
-                        <tr class="dre-subrow">
-                            <td>(-) Retiradas Pessoais / Pró-Labore para Gastos da Casa</td>
-                            <td class="text-right text-warning" id="dreRetiradasPessoais">R$ 0,00</td>
-                        </tr>
-                        <tr class="dre-row-balance">
-                            <td><strong>4. SALDO LÍQUIDO FINAL DO CAIXA (EMPRESA)</strong></td>
-                            <td class="text-right"><strong id="dreSaldoFinal">R$ 0,00</strong></td>
+                        <tr class="hover:bg-slate-800 transition bg-slate-900 border-t-4 border-brand-500">
+                            <td class="p-4 text-white font-bold text-lg"><i class="fa-solid fa-sack-dollar text-brand-400 mr-2"></i> Lucro Final (Líquido Livre)</td>
+                            <td class="p-4 text-right"><strong id="dreSaldoFinal" class="text-xl">R$ 0,00</strong></td>
                         </tr>
                     </tbody>
                 </table>
