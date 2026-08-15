@@ -862,4 +862,10 @@ body {
     .toast { max-width: 100%; width: 100%; }
 }
 
+/* Novos Badges Status */
+.badge-success { background: rgba(16,185,129,.15); color: var(--accent-emerald); }
+.badge-warning { background: rgba(245,158,11,.15); color: var(--accent-amber); }
+.badge-info { background: rgba(59,130,246,.15); color: var(--accent-blue); }
+.badge-primary { background: rgba(139,92,246,.15); color: var(--primary-color); }
+.badge-secondary { background: rgba(107,114,128,.15); color: var(--text-muted); }
 
