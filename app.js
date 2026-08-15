@@ -2823,33 +2823,115 @@ window.viewOrderDetails = function(id) {
     const v = graficaVendas.find(x => x.id === id);
     if (!v) return;
     
+    const faltaPagar = (v.faltaPagar !== undefined) ? v.faltaPagar : v.precoTotal;
+    const isPago = faltaPagar <= 0.01;
+
     const content = document.getElementById('graficaOrderModalContent');
     content.innerHTML = `
         <div class="space-y-3 text-slate-300">
-            <p><strong>ID do Pedido:</strong> ${v.id}</p>
-            <p><strong>Data:</strong> ${dateBR(v.data)}</p>
-            <p><strong>Status:</strong> <span class="badge ${v.status === 'Pendente Aprovação' ? 'badge-warning' : (v.status === 'Pendente Entrega' ? 'badge-info' : 'badge-success')}">${v.status || 'Entregue'}</span></p>
-            <hr class="border-slate-700">
-            <p><strong>Cliente:</strong> ${v.cliente || 'Não informado'}</p>
-            <p><strong>Telefone / WhatsApp:</strong> ${v.telefone || 'Não informado'}</p>
-            <hr class="border-slate-700">
-            <p><strong>Tipo de Item:</strong> ${v.tipoItem}</p>
-            <p><strong>Detalhes do Item:</strong> ${v.detalhes}</p>
-            <p><strong>Quantidade:</strong> ${v.qtd}</p>
-            ${v.m2Total ? `<p><strong>Metragem Total:</strong> ${v.m2Total.toFixed(2)} m²</p>` : ''}
-            <p><strong>Observações:</strong> ${v.obs || 'Nenhuma'}</p>
-            <hr class="border-slate-700">
-            <p><strong>Forma de Pagamento:</strong> ${v.formaPagamento || 'PIX'}</p>
-            <p><strong>Preço Final:</strong> <span class="text-white font-bold">${fmtR(v.precoTotal)}</span></p>
-            <p><strong>Sinal Pago:</strong> <span class="text-white">${fmtR(v.sinal || 0)}</span></p>
-            <p><strong>Falta Pagar:</strong> <span class="text-brand-400 font-bold">${fmtR(v.faltaPagar || 0)}</span></p>
-            <p><strong>Custo Total:</strong> ${fmtR(v.custoTotal)}</p>
-            <p><strong>Lucro Estimado:</strong> <span class="text-success">+${fmtR(v.lucro)}</span></p>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="badge ${v.status === 'Pendente Aprovação' ? 'badge-warning' : (v.status === 'Pendente Entrega' ? 'badge-info' : 'badge-success')}">${v.status || 'Entregue'}</span>
+                <span style="font-size:0.75rem; color:#64748b;">#${v.id.slice(-8)}</span>
+            </div>
+
+            <div style="background:#1e293b; border-radius:8px; padding:12px;">
+                <p style="font-size:0.75rem; color:#64748b; margin:0 0 4px;">CLIENTE</p>
+                <p style="margin:0; font-weight:700; color:#f1f5f9;">${v.cliente || 'Balcão'}</p>
+                ${v.telefone ? `<p style="margin:4px 0 0; font-size:0.82rem; color:#94a3b8;"><i class="fa-solid fa-phone" style="font-size:0.7rem;"></i> ${v.telefone}</p>` : ''}
+            </div>
+
+            <div style="background:#1e293b; border-radius:8px; padding:12px;">
+                <p style="font-size:0.75rem; color:#64748b; margin:0 0 6px;">PEDIDO — ${dateBR(v.data)}</p>
+                <p style="margin:0 0 2px;"><strong>${v.tipoItem}</strong></p>
+                <p style="margin:0; font-size:0.85rem; color:#94a3b8;">${v.detalhes} | Qtd: ${v.qtd}${v.m2Total ? ` (${v.m2Total.toFixed(2)} m²)` : ''}</p>
+                ${v.obs ? `<p style="margin:6px 0 0; font-size:0.82rem; color:#fbbf24;"><i class="fa-solid fa-comment-dots"></i> ${v.obs}</p>` : ''}
+            </div>
+
+            <div style="background:#1e293b; border-radius:8px; padding:12px;">
+                <p style="font-size:0.75rem; color:#64748b; margin:0 0 8px;">FINANCEIRO</p>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>Preço Total</span><span style="font-weight:700; color:#f1f5f9;">${fmtR(v.precoTotal)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>Sinal Pago</span><span style="color:#a3e635;">${fmtR(v.sinal || 0)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding-top:6px; border-top:1px solid #334155; margin-top:4px;">
+                    <span style="font-weight:700;">Falta Pagar</span>
+                    <span id="modalFaltaDisplay" style="font-weight:700; color:${isPago ? '#4ade80' : '#f87171'};">${isPago ? '✓ Pago' : fmtR(faltaPagar)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>Lucro</span><span style="color:#4ade80;">+${fmtR(v.lucro)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>Forma de Pagamento</span><span class="badge badge-secondary">${v.formaPagamento || 'PIX'}</span>
+                </div>
+            </div>
+
+            ${!isPago ? `
+            <div style="background:rgba(220,38,38,0.1); border:1px solid rgba(220,38,38,0.3); border-radius:8px; padding:14px;">
+                <p style="font-size:0.8rem; color:#fca5a5; margin:0 0 10px; font-weight:600;">
+                    <i class="fa-solid fa-circle-dollar-to-slot mr-2"></i>Registrar Pagamento
+                </p>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:0.8rem; white-space:nowrap; color:#94a3b8;">Valor recebido (R$)</span>
+                    <input type="number" id="modalPagamentoValor" step="0.01" min="0" 
+                           value="${faltaPagar.toFixed(2)}"
+                           style="flex:1; background:#0f172a; border:1px solid #475569; border-radius:6px; padding:6px 8px; color:#f1f5f9; font-size:0.9rem; text-align:right; outline:none;">
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="markOrderPaid('${v.id}', false)" 
+                            style="flex:1; padding:9px; background:#1d4ed8; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.85rem; transition:0.2s;"
+                            onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#1d4ed8'">
+                        <i class="fa-solid fa-money-bill-wave mr-1"></i>Registrar Parcial
+                    </button>
+                    <button onclick="markOrderPaid('${v.id}', true)" 
+                            style="flex:1; padding:9px; background:#15803d; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.85rem; transition:0.2s;"
+                            onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#15803d'">
+                        <i class="fa-solid fa-check-circle mr-1"></i>Pago Total
+                    </button>
+                </div>
+            </div>` : `
+            <div style="background:rgba(22,163,74,0.1); border:1px solid rgba(22,163,74,0.3); border-radius:8px; padding:12px; text-align:center;">
+                <i class="fa-solid fa-circle-check" style="color:#4ade80; font-size:1.5rem; display:block; margin-bottom:6px;"></i>
+                <p style="color:#4ade80; font-weight:700; margin:0;">Pedido totalmente pago!</p>
+            </div>`}
         </div>
     `;
     
     document.getElementById('graficaOrderModal').classList.remove('hidden');
 };
+
+window.markOrderPaid = function(id, fullPay) {
+    const v = graficaVendas.find(x => x.id === id);
+    if (!v) return;
+
+    if (fullPay) {
+        v.sinal = v.precoTotal;
+        v.faltaPagar = 0;
+        v.status = 'Entregue';
+        showToast('Pedido marcado como PAGO!', 'success');
+    } else {
+        const val = parseFloat(document.getElementById('modalPagamentoValor').value) || 0;
+        const faltaAtual = (v.faltaPagar !== undefined) ? v.faltaPagar : v.precoTotal;
+        const novoSinal = (v.sinal || 0) + val;
+        const novaFalta = Math.max(0, faltaAtual - val);
+        v.sinal = novoSinal;
+        v.faltaPagar = novaFalta;
+        if (novaFalta <= 0.01) {
+            v.status = 'Entregue';
+            showToast('Pagamento registrado! Pedido quitado.', 'success');
+        } else {
+            showToast(`Pagamento parcial de ${fmtR(val)} registrado. Falta: ${fmtR(novaFalta)}`, 'info');
+        }
+    }
+
+    saveGraficaVendas();
+    // Atualiza tabela, DRE, KPIs e saldo disponível de uma vez
+    renderGraficaApp();
+    // Reopen modal with updated data
+    window.viewOrderDetails(id);
+};
+
 
 window.closeGraficaOrderModal = function() {
     document.getElementById('graficaOrderModal').classList.add('hidden');
@@ -2933,7 +3015,11 @@ function renderGraficaDRE() {
     const despesasOpMes = graficaDespesasOp.filter(e => monthKey(e.data) === m);
     const despesasPessoaisMes = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
 
-    const receitaBruta = vendasMes.reduce((acc, v) => acc + (v.precoTotal || 0), 0);
+    // Receita = valor efetivamente recebido (descontando o que ainda falta pagar)
+    const receitaBruta = vendasMes.reduce((acc, v) => {
+        const falta = (v.faltaPagar !== undefined) ? v.faltaPagar : 0;
+        return acc + Math.max(0, (v.precoTotal || 0) - falta);
+    }, 0);
     const cmv = vendasMes.reduce((acc, v) => acc + (v.custoTotal || 0), 0);
     const lucroBruto = receitaBruta - cmv;
     const margemBruta = receitaBruta > 0 ? (lucroBruto / receitaBruta) * 100 : 0;
