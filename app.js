@@ -55,6 +55,21 @@ let roupasSettings = {
     emailjsPublicKey: ''
 };
 
+// Gráfica Rápida state
+let graficaProdutos = [];
+let graficaVendas = [];
+let graficaDespesasOp = [];
+let graficaDespesasPessoais = [];
+let editingGraficaProdutoId = null;
+let editingGraficaDespesaOpId = null;
+let editingGraficaDespesaPessoalId = null;
+let graficaSettings = {
+    backupEmail: '',
+    emailjsServiceId: '',
+    emailjsTemplateId: '',
+    emailjsPublicKey: ''
+};
+
 // Charts
 let charts = {};
 
@@ -355,23 +370,26 @@ async function syncCloudLoad() {
             localStorage.setItem(userKey('uber_finance_personal_entries'), JSON.stringify(personalEntries));
             localStorage.setItem(userKey('uber_finance_settings'), JSON.stringify(uberSettings));
             
-        } else if (currentUser.accountType === 'roupas') {
-            const [estRes, cmpRes, vndRes, sRes] = await Promise.all([
-                supabaseClient.from('estoque_items').select('*'),
-                supabaseClient.from('compras_entries').select('*'),
-                supabaseClient.from('vendas_entries').select('*'),
+        } else if (currentUser.accountType === 'grafica') {
+            const [prodsRes, vndsRes, despsOpRes, despsPessRes, sRes] = await Promise.all([
+                supabaseClient.from('grafica_produtos').select('*'),
+                supabaseClient.from('grafica_vendas').select('*'),
+                supabaseClient.from('grafica_despesas_op').select('*'),
+                supabaseClient.from('grafica_despesas_pessoais').select('*'),
                 supabaseClient.from('user_settings').select('settings_json').single()
             ]);
 
-            if (estRes.data && estRes.data.length) estoqueItems = estRes.data.map(r => ({ id: r.id, nome: r.nome, categoria: r.categoria, tamanho: r.tamanho, qtd: r.qtd, custo: r.custo, precoVenda: r.preco_venda, dataEntrada: r.data_entrada }));
-            if (cmpRes.data && cmpRes.data.length) comprasEntries = cmpRes.data.map(r => ({ id: r.id, data: r.date, produto: r.produto, qtd: r.qtd, custo: r.custo, transporte: r.transporte, fornecedor: r.fornecedor }));
-            if (vndRes.data && vndRes.data.length) vendasEntries = vndRes.data.map(r => ({ id: r.id, data: r.date, stockItemId: r.stock_item_id, produto: r.produto, tamanho: r.tamanho, qtd: r.qtd, valor: r.valor, custoRef: r.custo_ref, lucro: r.lucro, obs: r.obs }));
-            if (sRes.data && sRes.data.settings_json) roupasSettings = { ...roupasSettings, ...sRes.data.settings_json };
+            if (prodsRes.data && prodsRes.data.length) graficaProdutos = prodsRes.data.map(r => ({ id: r.id, tipo: r.tipo, nome: r.nome, categoria: r.categoria, medidas: r.medidas, tipoPapel: r.tipo_papel, acabamento: r.acabamento, custoUnitario: r.custo_unitario, margemLucro: r.margem_lucro, precoVenda: r.preco_venda, qtdEstoque: r.qtd_estoque, estoqueMinimo: r.estoque_minimo }));
+            if (vndsRes.data && vndsRes.data.length) graficaVendas = vndsRes.data.map(r => ({ id: r.id, data: r.date, cliente: r.cliente, tipoItem: r.tipo_item, produtoId: r.produto_id, detalhes: r.detalhes, larguraCm: r.largura_cm, alturaCm: r.altura_cm, m2Total: r.m2_total, qtd: r.qtd, custoTotal: r.custo_total, precoTotal: r.preco_total, lucro: r.lucro, formaPagamento: r.forma_pagamento, obs: r.obs }));
+            if (despsOpRes.data && despsOpRes.data.length) graficaDespesasOp = despsOpRes.data.map(r => ({ id: r.id, data: r.date, categoria: r.categoria, descricao: r.descricao, valor: r.valor, status: r.status }));
+            if (despsPessRes.data && despsPessRes.data.length) graficaDespesasPessoais = despsPessRes.data.map(r => ({ id: r.id, vencimento: r.vencimento, pagamento: r.pagamento, categoria: r.categoria, valor: r.valor, status: r.status, descricao: r.descricao }));
+            if (sRes.data && sRes.data.settings_json) graficaSettings = { ...graficaSettings, ...sRes.data.settings_json };
 
-            localStorage.setItem(userKey('roupas_estoque'), JSON.stringify(estoqueItems));
-            localStorage.setItem(userKey('roupas_compras'), JSON.stringify(comprasEntries));
-            localStorage.setItem(userKey('roupas_vendas'), JSON.stringify(vendasEntries));
-            localStorage.setItem(userKey('roupas_finance_settings'), JSON.stringify(roupasSettings));
+            localStorage.setItem(userKey('grafica_produtos'), JSON.stringify(graficaProdutos));
+            localStorage.setItem(userKey('grafica_vendas'), JSON.stringify(graficaVendas));
+            localStorage.setItem(userKey('grafica_despesas_op'), JSON.stringify(graficaDespesasOp));
+            localStorage.setItem(userKey('grafica_despesas_pessoais'), JSON.stringify(graficaDespesasPessoais));
+            localStorage.setItem(userKey('grafica_settings'), JSON.stringify(graficaSettings));
         }
     } catch(err) {
         console.warn('Erro ao ler do Supabase, rodando em modo local:', err);
@@ -382,8 +400,10 @@ let lastSyncTimeStr = 'Salvo';
 function updateSyncTimeUI() {
     const uBtn = document.getElementById('uberSyncTime');
     const rBtn = document.getElementById('roupasSyncTime');
+    const gBtn = document.getElementById('graficaSyncTime');
     if (uBtn) uBtn.textContent = lastSyncTimeStr;
     if (rBtn) rBtn.textContent = lastSyncTimeStr;
+    if (gBtn) gBtn.textContent = lastSyncTimeStr;
 }
 
 window.manualCloudSync = async function(btnId, timeId) {
@@ -420,11 +440,17 @@ async function syncCloudSave() {
             if (uberEntries.length) checkErr(await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, gross: e.gross, fuel: e.fuel, other: e.other, other_desc: e.otherDesc, km: e.km }))), 'Uber Entries');
             if (personalEntries.length) checkErr(await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, category: e.category, value: e.value, status: e.status, description: e.desc }))), 'Personal Entries');
             checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings }), 'Uber Settings');
-        } else {
+        } else if (currentUser.accountType === 'roupas') {
             if (estoqueItems.length) checkErr(await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ id: e.id, user_id: uid, nome: e.nome, categoria: e.categoria, tamanho: e.tamanho, qtd: e.qtd, custo: e.custo, preco_venda: e.precoVenda, data_entrada: e.dataEntrada }))), 'Estoque');
             if (comprasEntries.length) checkErr(await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, produto: e.produto, qtd: e.qtd, custo: e.custo, transporte: e.transporte, fornecedor: e.fornecedor }))), 'Compras');
             if (vendasEntries.length) checkErr(await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs }))), 'Vendas');
             checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings }), 'Roupas Settings');
+        } else if (currentUser.accountType === 'grafica') {
+            if (graficaProdutos.length) checkErr(await supabaseClient.from('grafica_produtos').upsert(graficaProdutos.map(e => ({ id: e.id, user_id: uid, tipo: e.tipo, nome: e.nome, categoria: e.categoria, medidas: e.medidas, tipo_papel: e.tipoPapel, acabamento: e.acabamento, custo_unitario: e.custoUnitario, margem_lucro: e.margemLucro, preco_venda: e.precoVenda, qtd_estoque: e.qtdEstoque, estoque_minimo: e.estoqueMinimo }))), 'Gráfica Produtos');
+            if (graficaVendas.length) checkErr(await supabaseClient.from('grafica_vendas').upsert(graficaVendas.map(e => ({ id: e.id, user_id: uid, date: e.data, cliente: e.cliente, tipo_item: e.tipoItem, produto_id: e.produtoId, detalhes: e.detalhes, largura_cm: e.larguraCm, altura_cm: e.alturaCm, m2_total: e.m2Total, qtd: e.qtd, custo_total: e.custoTotal, preco_total: e.precoTotal, lucro: e.lucro, forma_pagamento: e.formaPagamento, obs: e.obs }))), 'Gráfica Vendas');
+            if (graficaDespesasOp.length) checkErr(await supabaseClient.from('grafica_despesas_op').upsert(graficaDespesasOp.map(e => ({ id: e.id, user_id: uid, date: e.data, categoria: e.categoria, descricao: e.descricao, valor: e.valor, status: e.status }))), 'Gráfica Despesas Op');
+            if (graficaDespesasPessoais.length) checkErr(await supabaseClient.from('grafica_despesas_pessoais').upsert(graficaDespesasPessoais.map(e => ({ id: e.id, user_id: uid, vencimento: e.vencimento, pagamento: e.pagamento, categoria: e.categoria, valor: e.valor, status: e.status, descricao: e.descricao }))), 'Gráfica Despesas Pessoais');
+            checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: graficaSettings }), 'Gráfica Settings');
         }
         
         lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -585,6 +611,7 @@ function showAuth() {
     document.getElementById('authOverlay').classList.remove('hidden');
     document.getElementById('uberApp').classList.add('hidden');
     document.getElementById('roupasApp').classList.add('hidden');
+    document.getElementById('graficaApp').classList.add('hidden');
 }
 
 function hideAuth() {
@@ -609,6 +636,8 @@ function startSession() {
             startUberSession();
         } else if (currentUser.accountType === 'roupas') {
             startRoupasSession();
+        } else if (currentUser.accountType === 'grafica') {
+            startGraficaSession();
         } else {
             localStorage.removeItem('uber_finance_logged_user');
             currentUser = null;
@@ -1884,4 +1913,793 @@ function downloadCSV(content, filename) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+// =====================================================
+// =====================================================
+//  GRÁFICA RÁPIDA MODULE
+// =====================================================
+// =====================================================
+async function startGraficaSession() {
+    document.getElementById('graficaApp').classList.remove('hidden');
+    document.getElementById('graficaHeaderUserName').textContent = currentUser.name;
+
+    document.getElementById('graficaLogoutBtn').onclick = handleLogout;
+    document.getElementById('graficaSyncBtn').onclick = () => window.manualCloudSync('graficaSyncBtn', 'graficaSyncTime');
+
+    loadGraficaSettings();
+    loadGraficaProdutos();
+    loadGraficaVendas();
+    loadGraficaDespesasOp();
+    loadGraficaDespesasPessoais();
+
+    // Sync cloud data
+    await syncCloudLoad();
+
+    setupGraficaTabs();
+    setupGraficaCalculators();
+    setupGraficaForms();
+    setupGraficaSettingsModal();
+
+    document.getElementById('exportGraficaCsvBtn').onclick = exportGraficaCsv;
+
+    renderGraficaApp();
+}
+
+function loadGraficaSettings() {
+    const d = localStorage.getItem(userKey('grafica_settings'));
+    graficaSettings = d ? JSON.parse(d) : {
+        backupEmail: '',
+        emailjsServiceId: '',
+        emailjsTemplateId: '',
+        emailjsPublicKey: ''
+    };
+}
+function saveGraficaSettings() {
+    localStorage.setItem(userKey('grafica_settings'), JSON.stringify(graficaSettings));
+    syncCloudSave();
+}
+
+function loadGraficaProdutos() {
+    const d = localStorage.getItem(userKey('grafica_produtos'));
+    graficaProdutos = d ? JSON.parse(d) : [];
+}
+function saveGraficaProdutos() {
+    localStorage.setItem(userKey('grafica_produtos'), JSON.stringify(graficaProdutos));
+    syncCloudSave();
+}
+
+function loadGraficaVendas() {
+    const d = localStorage.getItem(userKey('grafica_vendas'));
+    graficaVendas = d ? JSON.parse(d) : [];
+}
+function saveGraficaVendas() {
+    localStorage.setItem(userKey('grafica_vendas'), JSON.stringify(graficaVendas));
+    syncCloudSave();
+}
+
+function loadGraficaDespesasOp() {
+    const d = localStorage.getItem(userKey('grafica_despesas_op'));
+    graficaDespesasOp = d ? JSON.parse(d) : [];
+}
+function saveGraficaDespesasOp() {
+    localStorage.setItem(userKey('grafica_despesas_op'), JSON.stringify(graficaDespesasOp));
+    syncCloudSave();
+}
+
+function loadGraficaDespesasPessoais() {
+    const d = localStorage.getItem(userKey('grafica_despesas_pessoais'));
+    graficaDespesasPessoais = d ? JSON.parse(d) : [];
+}
+function saveGraficaDespesasPessoais() {
+    localStorage.setItem(userKey('grafica_despesas_pessoais'), JSON.stringify(graficaDespesasPessoais));
+    syncCloudSave();
+}
+
+// ----- Tabs -----
+function setupGraficaTabs() {
+    document.querySelectorAll('#graficaTabsNav .tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#graficaTabsNav .tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#graficaApp .gtab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.gtab).classList.add('active');
+            renderGraficaApp();
+        };
+    });
+}
+
+// ----- Month Filter -----
+function populateGraficaMonthFilter() {
+    const select = document.getElementById('graficaMonthFilter');
+    const prev = select.value;
+    const months = new Set([new Date().toISOString().substring(0, 7)]);
+    graficaVendas.forEach(e => { if (e.data) months.add(monthKey(e.data)); });
+    graficaDespesasOp.forEach(e => { if (e.data) months.add(monthKey(e.data)); });
+    graficaDespesasPessoais.forEach(e => { if (e.vencimento) months.add(monthKey(e.vencimento)); });
+
+    const sorted = Array.from(months).sort().reverse();
+    select.innerHTML = sorted.map(m => {
+        const [y, mm] = m.split('-');
+        const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        return `<option value="${m}">${names[parseInt(mm,10)-1]} / ${y}</option>`;
+    }).join('');
+
+    if (prev && sorted.includes(prev)) select.value = prev;
+    select.onchange = () => renderGraficaApp();
+}
+
+// ----- Calculators -----
+function setupGraficaCalculators() {
+    const pap = document.getElementById('calcA4Papel');
+    const aca = document.getElementById('calcA4Acabamento');
+    const qtd = document.getElementById('calcA4Qtd');
+
+    if (pap && aca && qtd) {
+        const updateA4 = () => {
+            const pOpt = pap.options[pap.selectedIndex];
+            const aOpt = aca.options[aca.selectedIndex];
+            const baseCost = parseFloat(pOpt.dataset.cost || 0);
+            const basePrice = parseFloat(pOpt.dataset.price || 0);
+            const mult = parseFloat(aOpt.dataset.mult || 1);
+            const q = parseInt(qtd.value) || 1;
+
+            const totalCost = baseCost * mult * q;
+            const totalPrice = basePrice * mult * q;
+
+            document.getElementById('calcA4CustoTotal').textContent = fmtR(totalCost);
+            document.getElementById('calcA4PrecoTotal').textContent = fmtR(totalPrice);
+        };
+
+        pap.onchange = updateA4;
+        aca.onchange = updateA4;
+        qtd.oninput = updateA4;
+        updateA4();
+    }
+
+    const mat = document.getElementById('calcPlotterMaterial');
+    const larg = document.getElementById('calcPlotterLargura');
+    const alt = document.getElementById('calcPlotterAltura');
+    const pqtd = document.getElementById('calcPlotterQtd');
+
+    if (mat && larg && alt && pqtd) {
+        const updatePlotter = () => {
+            const mOpt = mat.options[mat.selectedIndex];
+            const costM2 = parseFloat(mOpt.dataset.costm2 || 0);
+            const priceM2 = parseFloat(mOpt.dataset.pricem2 || 0);
+            const w = parseFloat(larg.value || 0);
+            const h = parseFloat(alt.value || 0);
+            const q = parseInt(pqtd.value || 1);
+
+            const m2One = (w * h) / 10000;
+            const totalM2 = m2One * q;
+
+            const totalCost = totalM2 * costM2;
+            const totalPrice = totalM2 * priceM2;
+
+            document.getElementById('calcPlotterM2').textContent = `${totalM2.toFixed(2)} m²`;
+            document.getElementById('calcPlotterCustoTotal').textContent = fmtR(totalCost);
+            document.getElementById('calcPlotterPrecoTotal').textContent = fmtR(totalPrice);
+        };
+
+        mat.onchange = updatePlotter;
+        larg.oninput = updatePlotter;
+        alt.oninput = updatePlotter;
+        pqtd.oninput = updatePlotter;
+        updatePlotter();
+    }
+
+    document.getElementById('btnVenderA4').onclick = () => {
+        const pap = document.getElementById('calcA4Papel');
+        const aca = document.getElementById('calcA4Acabamento');
+        const qtd = parseInt(document.getElementById('calcA4Qtd').value) || 1;
+        const cliente = document.getElementById('calcA4Cliente').value.trim() || 'Balcão';
+
+        const pOpt = pap.options[pap.selectedIndex];
+        const aOpt = aca.options[aca.selectedIndex];
+        const mult = parseFloat(aOpt.dataset.mult || 1);
+        const custoTotal = parseFloat(pOpt.dataset.cost || 0) * mult * qtd;
+        const precoTotal = parseFloat(pOpt.dataset.price || 0) * mult * qtd;
+
+        const venda = {
+            id: Date.now().toString(),
+            data: todayISO(),
+            cliente,
+            tipoItem: 'Impressão A4',
+            produtoId: null,
+            detalhes: `${pOpt.text} (${aOpt.text})`,
+            larguraCm: 21,
+            alturaCm: 29.7,
+            m2Total: 0,
+            qtd,
+            custoTotal,
+            precoTotal,
+            lucro: precoTotal - custoTotal,
+            formaPagamento: 'PIX / Dinheiro',
+            obs: ''
+        };
+
+        graficaVendas.unshift(venda);
+        saveGraficaVendas();
+        showToast('Venda A4 registrada com sucesso!', 'success');
+        document.getElementById('calcA4Cliente').value = '';
+        renderGraficaApp();
+    };
+
+    document.getElementById('btnVenderPlotter').onclick = () => {
+        const mat = document.getElementById('calcPlotterMaterial');
+        const w = parseFloat(document.getElementById('calcPlotterLargura').value) || 100;
+        const h = parseFloat(document.getElementById('calcPlotterAltura').value) || 100;
+        const qtd = parseInt(document.getElementById('calcPlotterQtd').value) || 1;
+        const cliente = document.getElementById('calcPlotterCliente').value.trim() || 'Balcão';
+
+        const mOpt = mat.options[mat.selectedIndex];
+        const m2Total = ((w * h) / 10000) * qtd;
+        const custoTotal = m2Total * parseFloat(mOpt.dataset.costm2 || 0);
+        const precoTotal = m2Total * parseFloat(mOpt.dataset.pricem2 || 0);
+
+        const venda = {
+            id: Date.now().toString(),
+            data: todayISO(),
+            cliente,
+            tipoItem: 'Plotter Grandes Formatos',
+            produtoId: null,
+            detalhes: `${mOpt.text} (${w}x${h}cm)`,
+            larguraCm: w,
+            alturaCm: h,
+            m2Total,
+            qtd,
+            custoTotal,
+            precoTotal,
+            lucro: precoTotal - custoTotal,
+            formaPagamento: 'PIX / Dinheiro',
+            obs: ''
+        };
+
+        graficaVendas.unshift(venda);
+        saveGraficaVendas();
+        showToast('Venda Plotter registrada com sucesso!', 'success');
+        document.getElementById('calcPlotterCliente').value = '';
+        renderGraficaApp();
+    };
+
+    document.getElementById('vendaBalcaoForm').onsubmit = (e) => {
+        e.preventDefault();
+        const prodId = document.getElementById('vendaBalcaoProduto').value;
+        if (!prodId) { alert('Selecione um produto.'); return; }
+
+        const prod = graficaProdutos.find(p => p.id === prodId);
+        if (!prod) return;
+
+        const qtd = parseInt(document.getElementById('vendaBalcaoQtd').value) || 1;
+        if (prod.qtdEstoque < qtd) {
+            if (!confirm(`Atenção: Estoque atual (${prod.qtdEstoque}) é menor que a quantidade desejada (${qtd}). Deseja vender assim mesmo?`)) return;
+        }
+
+        // Deduct stock
+        prod.qtdEstoque = Math.max(0, prod.qtdEstoque - qtd);
+        saveGraficaProdutos();
+
+        const cliente = document.getElementById('vendaBalcaoCliente').value.trim() || 'Balcão';
+        const formaPagamento = document.getElementById('vendaBalcaoPagamento').value;
+        const obs = document.getElementById('vendaBalcaoObs').value.trim();
+
+        const custoTotal = prod.custoUnitario * qtd;
+        const precoTotal = prod.precoVenda * qtd;
+
+        const venda = {
+            id: Date.now().toString(),
+            data: todayISO(),
+            cliente,
+            tipoItem: 'Produto Padronizado',
+            produtoId: prod.id,
+            detalhes: `${prod.nome} (${prod.medidas || ''})`,
+            larguraCm: 0,
+            alturaCm: 0,
+            m2Total: 0,
+            qtd,
+            custoTotal,
+            precoTotal,
+            lucro: precoTotal - custoTotal,
+            formaPagamento,
+            obs
+        };
+
+        graficaVendas.unshift(venda);
+        saveGraficaVendas();
+        showToast(`Venda de ${prod.nome} registrada e estoque atualizado!`, 'success');
+
+        document.getElementById('vendaBalcaoForm').reset();
+        renderGraficaApp();
+    };
+}
+
+// ----- Forms Setup -----
+function setupGraficaForms() {
+    // Open product form
+    document.getElementById('openAddGraficaProdutoBtn').onclick = () => {
+        editingGraficaProdutoId = null;
+        document.getElementById('graficaProdutoForm').reset();
+        document.getElementById('graficaProdutoId').value = '';
+        document.getElementById('graficaProdutoFormWrapper').classList.remove('hidden');
+    };
+    document.getElementById('cancelGraficaProdutoBtn').onclick = () => {
+        document.getElementById('graficaProdutoFormWrapper').classList.add('hidden');
+    };
+
+    // Auto margin / price sync
+    const costIn = document.getElementById('graficaProdutoCusto');
+    const margIn = document.getElementById('graficaProdutoMargem');
+    const priceIn = document.getElementById('graficaProdutoPreco');
+
+    if (costIn && margIn && priceIn) {
+        costIn.oninput = () => {
+            const c = parseFloat(costIn.value) || 0;
+            const m = parseFloat(margIn.value) || 0;
+            if (c > 0 && m > 0) {
+                priceIn.value = (c * (1 + m / 100)).toFixed(2);
+            }
+        };
+        margIn.oninput = () => {
+            const c = parseFloat(costIn.value) || 0;
+            const m = parseFloat(margIn.value) || 0;
+            if (c > 0) {
+                priceIn.value = (c * (1 + m / 100)).toFixed(2);
+            }
+        };
+        priceIn.oninput = () => {
+            const c = parseFloat(costIn.value) || 0;
+            const p = parseFloat(priceIn.value) || 0;
+            if (c > 0 && p >= c) {
+                margIn.value = (((p - c) / c) * 100).toFixed(1);
+            }
+        };
+    }
+
+    document.getElementById('graficaProdutoForm').onsubmit = (e) => {
+        e.preventDefault();
+        const id = document.getElementById('graficaProdutoId').value || Date.now().toString();
+        const custoUnitario = parseFloat(document.getElementById('graficaProdutoCusto').value) || 0;
+        const precoVenda = parseFloat(document.getElementById('graficaProdutoPreco').value) || 0;
+        const margemLucro = parseFloat(document.getElementById('graficaProdutoMargem').value) || (custoUnitario > 0 ? (((precoVenda - custoUnitario) / custoUnitario) * 100) : 0);
+
+        const prod = {
+            id,
+            tipo: document.getElementById('graficaProdutoTipo').value,
+            nome: document.getElementById('graficaProdutoNome').value.trim(),
+            categoria: document.getElementById('graficaProdutoCategoria').value,
+            medidas: document.getElementById('graficaProdutoMedidas').value.trim(),
+            tipoPapel: document.getElementById('graficaProdutoPapel').value.trim(),
+            acabamento: document.getElementById('graficaProdutoAcabamento').value.trim(),
+            custoUnitario,
+            margemLucro,
+            precoVenda,
+            qtdEstoque: parseInt(document.getElementById('graficaProdutoEstoque').value) || 0,
+            estoqueMinimo: parseInt(document.getElementById('graficaProdutoEstoqueMin').value) || 5
+        };
+
+        if (editingGraficaProdutoId) {
+            const idx = graficaProdutos.findIndex(p => p.id === editingGraficaProdutoId);
+            if (idx !== -1) graficaProdutos[idx] = prod;
+        } else {
+            graficaProdutos.push(prod);
+        }
+
+        saveGraficaProdutos();
+        showToast('Produto salvo no catálogo com sucesso!', 'success');
+        document.getElementById('graficaProdutoFormWrapper').classList.add('hidden');
+        renderGraficaApp();
+    };
+
+    // Open Operational Expense Form
+    document.getElementById('openAddGraficaDespesaOpBtn').onclick = () => {
+        editingGraficaDespesaOpId = null;
+        document.getElementById('graficaDespesaOpForm').reset();
+        document.getElementById('graficaDespesaOpId').value = '';
+        document.getElementById('graficaDespesaOpData').value = todayISO();
+        document.getElementById('graficaDespesaOpFormWrapper').classList.remove('hidden');
+    };
+    document.getElementById('cancelGraficaDespesaOpBtn').onclick = () => {
+        document.getElementById('graficaDespesaOpFormWrapper').classList.add('hidden');
+    };
+
+    document.getElementById('graficaDespesaOpForm').onsubmit = (e) => {
+        e.preventDefault();
+        const id = document.getElementById('graficaDespesaOpId').value || Date.now().toString();
+        const despesa = {
+            id,
+            data: document.getElementById('graficaDespesaOpData').value,
+            categoria: document.getElementById('graficaDespesaOpCategoria').value,
+            descricao: document.getElementById('graficaDespesaOpDescricao').value.trim(),
+            valor: parseFloat(document.getElementById('graficaDespesaOpValor').value) || 0,
+            status: document.getElementById('graficaDespesaOpStatus').value
+        };
+
+        if (editingGraficaDespesaOpId) {
+            const idx = graficaDespesasOp.findIndex(d => d.id === editingGraficaDespesaOpId);
+            if (idx !== -1) graficaDespesasOp[idx] = despesa;
+        } else {
+            graficaDespesasOp.unshift(despesa);
+        }
+
+        saveGraficaDespesasOp();
+        showToast('Despesa operacional registrada!', 'success');
+        document.getElementById('graficaDespesaOpFormWrapper').classList.add('hidden');
+        renderGraficaApp();
+    };
+
+    // Open Personal Expense Form
+    document.getElementById('openAddGraficaPessoalBtn').onclick = () => {
+        editingGraficaDespesaPessoalId = null;
+        document.getElementById('graficaPessoalForm').reset();
+        document.getElementById('graficaPessoalId').value = '';
+        document.getElementById('graficaPessoalVencimento').value = todayISO();
+        document.getElementById('graficaPessoalFormWrapper').classList.remove('hidden');
+    };
+    document.getElementById('cancelGraficaPessoalBtn').onclick = () => {
+        document.getElementById('graficaPessoalFormWrapper').classList.add('hidden');
+    };
+
+    document.getElementById('graficaPessoalForm').onsubmit = (e) => {
+        e.preventDefault();
+        const id = document.getElementById('graficaPessoalId').value || Date.now().toString();
+        const despesa = {
+            id,
+            vencimento: document.getElementById('graficaPessoalVencimento').value,
+            pagamento: document.getElementById('graficaPessoalPagamento').value || null,
+            categoria: document.getElementById('graficaPessoalCategoria').value,
+            descricao: document.getElementById('graficaPessoalDescricao').value.trim(),
+            valor: parseFloat(document.getElementById('graficaPessoalValor').value) || 0,
+            status: document.getElementById('graficaPessoalStatus').value
+        };
+
+        if (editingGraficaDespesaPessoalId) {
+            const idx = graficaDespesasPessoais.findIndex(d => d.id === editingGraficaDespesaPessoalId);
+            if (idx !== -1) graficaDespesasPessoais[idx] = despesa;
+        } else {
+            graficaDespesasPessoais.unshift(despesa);
+        }
+
+        saveGraficaDespesasPessoais();
+        showToast('Despesa pessoal cadastrada!', 'success');
+        document.getElementById('graficaPessoalFormWrapper').classList.add('hidden');
+        renderGraficaApp();
+    };
+}
+
+// ----- Settings Modal -----
+function setupGraficaSettingsModal() {
+    document.getElementById('openGraficaSettingsBtn').onclick = () => {
+        document.getElementById('gBackupEmail').value = graficaSettings.backupEmail || '';
+        document.getElementById('gEmailjsServiceId').value = graficaSettings.emailjsServiceId || '';
+        document.getElementById('gEmailjsTemplateId').value = graficaSettings.emailjsTemplateId || '';
+        document.getElementById('gEmailjsPublicKey').value = graficaSettings.emailjsPublicKey || '';
+        document.getElementById('graficaSettingsModal').classList.remove('hidden');
+    };
+
+    const closeBtn = document.getElementById('closeGraficaSettingsBtn');
+    const cancelBtn = document.getElementById('cancelGraficaSettingsBtn');
+    const closeModal = () => document.getElementById('graficaSettingsModal').classList.add('hidden');
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    document.getElementById('graficaSettingsForm').onsubmit = (e) => {
+        e.preventDefault();
+        graficaSettings.backupEmail = document.getElementById('gBackupEmail').value.trim();
+        graficaSettings.emailjsServiceId = document.getElementById('gEmailjsServiceId').value.trim();
+        graficaSettings.emailjsTemplateId = document.getElementById('gEmailjsTemplateId').value.trim();
+        graficaSettings.emailjsPublicKey = document.getElementById('gEmailjsPublicKey').value.trim();
+        saveGraficaSettings();
+        showToast('Configurações da Gráfica salvas!', 'success');
+        closeModal();
+    };
+}
+
+// ----- Renderers -----
+function renderGraficaApp() {
+    populateGraficaMonthFilter();
+    populateVendaBalcaoProdutosDropdown();
+    renderGraficaVendasTable();
+    renderGraficaProdutosTable();
+    renderGraficaDespesasOpTable();
+    renderGraficaDRE();
+    renderGraficaDespesasPessoaisTable();
+    updateGraficaKpis();
+}
+
+function populateVendaBalcaoProdutosDropdown() {
+    const select = document.getElementById('vendaBalcaoProduto');
+    if (!select) return;
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">-- Selecione um Produto cadastrado --</option>' +
+        graficaProdutos.map(p => `<option value="${p.id}">${p.nome} (${p.medidas || 'Padronizado'}) - R$ ${p.precoVenda.toFixed(2)} [Estoque: ${p.qtdEstoque}]</option>`).join('');
+    if (currentVal) select.value = currentVal;
+}
+
+function renderGraficaVendasTable() {
+    const tbody = document.getElementById('graficaVendasTableBody');
+    if (!tbody) return;
+    const m = document.getElementById('graficaMonthFilter').value;
+    const filtered = graficaVendas.filter(e => monthKey(e.data) === m);
+
+    if (!filtered.length) {
+        tbody.innerHTML = emptyRow(9, 'Nenhum pedido ou venda no período.');
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(v => `
+        <tr>
+            <td>${dateBR(v.data)}</td>
+            <td><strong>${v.cliente || 'Balcão'}</strong></td>
+            <td><span class="badge ${v.tipoItem.includes('A4') ? 'badge-info' : v.tipoItem.includes('Plotter') ? 'badge-warning' : 'badge-success'}">${v.tipoItem}</span></td>
+            <td>${v.detalhes} | <strong>Qtd: ${v.qtd}</strong>${v.m2Total ? ` (${v.m2Total.toFixed(2)} m²)` : ''}</td>
+            <td>${fmtR(v.custoTotal)}</td>
+            <td><strong>${fmtR(v.precoTotal)}</strong></td>
+            <td class="text-success"><strong>+${fmtR(v.lucro)}</strong></td>
+            <td><span class="badge badge-secondary">${v.formaPagamento || 'PIX'}</span></td>
+            <td>
+                <button class="action-btn action-delete" onclick="deleteGraficaVenda('${v.id}')" title="Excluir Venda"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderGraficaProdutosTable() {
+    const tbody = document.getElementById('graficaProdutosTableBody');
+    if (!tbody) return;
+
+    if (!graficaProdutos.length) {
+        tbody.innerHTML = emptyRow(9, 'Nenhum produto cadastrado no catálogo.');
+        return;
+    }
+
+    tbody.innerHTML = graficaProdutos.map(p => {
+        const isLow = p.qtdEstoque <= (p.estoqueMinimo || 5);
+        return `
+            <tr>
+                <td><strong>${p.nome}</strong></td>
+                <td>${p.categoria}</td>
+                <td>${p.medidas || '-'} / ${p.acabamento || '-'}</td>
+                <td>${fmtR(p.custoUnitario)}</td>
+                <td><strong>${fmtR(p.precoVenda)}</strong></td>
+                <td>${p.margemLucro.toFixed(1)}%</td>
+                <td><strong>${p.qtdEstoque} un</strong></td>
+                <td>
+                    <span class="badge ${isLow ? 'badge-low-stock' : 'badge-ok-stock'}">
+                        ${isLow ? `🚨 Estoque Mínimo (${p.qtdEstoque})` : '✅ Normal'}
+                    </span>
+                </td>
+                <td>
+                    <button class="action-btn action-edit" onclick="editGraficaProduto('${p.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn action-delete" onclick="deleteGraficaProduto('${p.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderGraficaDespesasOpTable() {
+    const tbody = document.getElementById('graficaDespesasOpTableBody');
+    if (!tbody) return;
+    const m = document.getElementById('graficaMonthFilter').value;
+    const filtered = graficaDespesasOp.filter(e => monthKey(e.data) === m);
+
+    if (!filtered.length) {
+        tbody.innerHTML = emptyRow(6, 'Nenhuma despesa operacional registrada no período.');
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(d => `
+        <tr>
+            <td>${dateBR(d.data)}</td>
+            <td><span class="badge badge-secondary">${d.categoria}</span></td>
+            <td><strong>${d.descricao}</strong></td>
+            <td class="text-danger"><strong>${fmtR(d.valor)}</strong></td>
+            <td>
+                <span class="badge ${d.status === 'Pago' ? 'badge-success' : 'badge-danger'}">${d.status}</span>
+            </td>
+            <td>
+                <button class="action-btn action-edit" onclick="editGraficaDespesaOp('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn action-delete" onclick="deleteGraficaDespesaOp('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderGraficaDRE() {
+    const m = document.getElementById('graficaMonthFilter').value;
+
+    const vendasMes = graficaVendas.filter(e => monthKey(e.data) === m);
+    const despesasOpMes = graficaDespesasOp.filter(e => monthKey(e.data) === m);
+    const despesasPessoaisMes = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
+
+    const receitaBruta = vendasMes.reduce((acc, v) => acc + (v.precoTotal || 0), 0);
+    const cmv = vendasMes.reduce((acc, v) => acc + (v.custoTotal || 0), 0);
+    const lucroBruto = receitaBruta - cmv;
+    const margemBruta = receitaBruta > 0 ? (lucroBruto / receitaBruta) * 100 : 0;
+
+    const despesasOp = despesasOpMes.reduce((acc, d) => acc + (d.valor || 0), 0);
+    const lucroLiquido = lucroBruto - despesasOp;
+    const margemLiquida = receitaBruta > 0 ? (lucroLiquido / receitaBruta) * 100 : 0;
+
+    const retiradasPessoais = despesasPessoaisMes.reduce((acc, d) => acc + (d.valor || 0), 0);
+    const saldoFinal = lucroLiquido - retiradasPessoais;
+
+    document.getElementById('dreReceitaBruta').textContent = fmtR(receitaBruta);
+    document.getElementById('dreCmv').textContent = fmtR(cmv);
+    document.getElementById('dreLucroBruto').textContent = fmtR(lucroBruto);
+    document.getElementById('dreMargemBruta').textContent = `${margemBruta.toFixed(1)}%`;
+    document.getElementById('dreDespesasOp').textContent = fmtR(despesasOp);
+
+    const elLiquido = document.getElementById('dreLucroLiquido');
+    elLiquido.textContent = fmtR(lucroLiquido);
+    elLiquido.className = lucroLiquido >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
+
+    document.getElementById('dreMargemLiquida').textContent = `${margemLiquida.toFixed(1)}%`;
+    document.getElementById('dreRetiradasPessoais').textContent = fmtR(retiradasPessoais);
+
+    const elSaldo = document.getElementById('dreSaldoFinal');
+    elSaldo.textContent = fmtR(saldoFinal);
+    elSaldo.className = saldoFinal >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
+}
+
+function renderGraficaDespesasPessoaisTable() {
+    const tbody = document.getElementById('graficaPessoalTableBody');
+    if (!tbody) return;
+    const m = document.getElementById('graficaMonthFilter').value;
+    const filtered = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
+
+    if (!filtered.length) {
+        tbody.innerHTML = emptyRow(7, 'Nenhuma despesa pessoal / doméstica registrada no período.');
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(d => `
+        <tr>
+            <td>${dateBR(d.vencimento)}</td>
+            <td>${d.pagamento ? dateBR(d.pagamento) : '-'}</td>
+            <td><span class="badge badge-secondary">${d.categoria}</span></td>
+            <td><strong>${d.descricao}</strong></td>
+            <td class="text-danger"><strong>${fmtR(d.valor)}</strong></td>
+            <td>
+                <span class="badge ${d.status === 'Pago' ? 'badge-success' : 'badge-danger'}">${d.status}</span>
+            </td>
+            <td>
+                <button class="action-btn action-edit" onclick="editGraficaDespesaPessoal('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn action-delete" onclick="deleteGraficaDespesaPessoal('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateGraficaKpis() {
+    const m = document.getElementById('graficaMonthFilter').value;
+
+    // Tab Produtos KPIs
+    document.getElementById('kpiGraficaTotalProdutos').textContent = graficaProdutos.length;
+    document.getElementById('kpiGraficaTiposCount').textContent = `${graficaProdutos.length} itens no catálogo`;
+
+    const alertasCount = graficaProdutos.filter(p => p.qtdEstoque <= (p.estoqueMinimo || 5)).length;
+    document.getElementById('kpiGraficaAlertasEstoque').textContent = alertasCount;
+
+    const custoEstoqueTotal = graficaProdutos.reduce((acc, p) => acc + (p.custoUnitario * p.qtdEstoque), 0);
+    const vendaEstoqueTotal = graficaProdutos.reduce((acc, p) => acc + (p.precoVenda * p.qtdEstoque), 0);
+    document.getElementById('kpiGraficaEstoqueCusto').textContent = fmtR(custoEstoqueTotal);
+    document.getElementById('kpiGraficaEstoqueVenda').textContent = `Potencial Venda: ${fmtR(vendaEstoqueTotal)}`;
+
+    // Tab Despesas Op KPIs
+    const despesasOpMes = graficaDespesasOp.filter(e => monthKey(e.data) === m);
+    const totalOp = despesasOpMes.reduce((acc, d) => acc + d.valor, 0);
+    const pagasOp = despesasOpMes.filter(d => d.status === 'Pago').reduce((acc, d) => acc + d.valor, 0);
+    const pendentesOp = despesasOpMes.filter(d => d.status === 'Pendente').reduce((acc, d) => acc + d.valor, 0);
+
+    document.getElementById('kpiGraficaDespesasOpTotal').textContent = fmtR(totalOp);
+    document.getElementById('kpiGraficaDespesasOpCount').textContent = `${despesasOpMes.length} registros em ${m}`;
+    document.getElementById('kpiGraficaDespesasOpPagas').textContent = fmtR(pagasOp);
+    document.getElementById('kpiGraficaDespesasOpPendentes').textContent = fmtR(pendentesOp);
+
+    // Tab Pessoal KPIs
+    const despesasPessoaisMes = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
+    const totalPess = despesasPessoaisMes.reduce((acc, d) => acc + d.valor, 0);
+    const pagasPess = despesasPessoaisMes.filter(d => d.status === 'Pago').reduce((acc, d) => acc + d.valor, 0);
+    const pendentesPess = despesasPessoaisMes.filter(d => d.status === 'Pendente').reduce((acc, d) => acc + d.valor, 0);
+
+    document.getElementById('kpiGraficaPessoalTotal').textContent = fmtR(totalPess);
+    document.getElementById('kpiGraficaPessoalPagas').textContent = fmtR(pagasPess);
+    document.getElementById('kpiGraficaPessoalPendentes').textContent = fmtR(pendentesPess);
+}
+
+// ----- Deletes & Edits -----
+window.deleteGraficaVenda = function(id) {
+    if (!confirm('Excluir este registro de venda?')) return;
+    graficaVendas = graficaVendas.filter(v => v.id !== id);
+    deleteCloudItem('grafica_vendas', id);
+    saveGraficaVendas();
+    renderGraficaApp();
+};
+
+window.deleteGraficaProduto = function(id) {
+    if (!confirm('Excluir este produto do catálogo?')) return;
+    graficaProdutos = graficaProdutos.filter(p => p.id !== id);
+    deleteCloudItem('grafica_produtos', id);
+    saveGraficaProdutos();
+    renderGraficaApp();
+};
+
+window.editGraficaProduto = function(id) {
+    const prod = graficaProdutos.find(p => p.id === id);
+    if (!prod) return;
+    editingGraficaProdutoId = id;
+    document.getElementById('graficaProdutoId').value = prod.id;
+    document.getElementById('graficaProdutoTipo').value = prod.tipo;
+    document.getElementById('graficaProdutoNome').value = prod.nome;
+    document.getElementById('graficaProdutoCategoria').value = prod.categoria;
+    document.getElementById('graficaProdutoMedidas').value = prod.medidas || '';
+    document.getElementById('graficaProdutoPapel').value = prod.tipoPapel || '';
+    document.getElementById('graficaProdutoAcabamento').value = prod.acabamento || '';
+    document.getElementById('graficaProdutoCusto').value = prod.custoUnitario;
+    document.getElementById('graficaProdutoMargem').value = prod.margemLucro;
+    document.getElementById('graficaProdutoPreco').value = prod.precoVenda;
+    document.getElementById('graficaProdutoEstoque').value = prod.qtdEstoque;
+    document.getElementById('graficaProdutoEstoqueMin').value = prod.estoqueMinimo || 5;
+
+    document.getElementById('graficaProdutoFormWrapper').classList.remove('hidden');
+};
+
+window.deleteGraficaDespesaOp = function(id) {
+    if (!confirm('Excluir esta despesa operacional?')) return;
+    graficaDespesasOp = graficaDespesasOp.filter(d => d.id !== id);
+    deleteCloudItem('grafica_despesas_op', id);
+    saveGraficaDespesasOp();
+    renderGraficaApp();
+};
+
+window.editGraficaDespesaOp = function(id) {
+    const d = graficaDespesasOp.find(item => item.id === id);
+    if (!d) return;
+    editingGraficaDespesaOpId = id;
+    document.getElementById('graficaDespesaOpId').value = d.id;
+    document.getElementById('graficaDespesaOpData').value = d.data;
+    document.getElementById('graficaDespesaOpCategoria').value = d.categoria;
+    document.getElementById('graficaDespesaOpDescricao').value = d.descricao;
+    document.getElementById('graficaDespesaOpValor').value = d.valor;
+    document.getElementById('graficaDespesaOpStatus').value = d.status;
+
+    document.getElementById('graficaDespesaOpFormWrapper').classList.remove('hidden');
+};
+
+window.deleteGraficaDespesaPessoal = function(id) {
+    if (!confirm('Excluir esta despesa pessoal?')) return;
+    graficaDespesasPessoais = graficaDespesasPessoais.filter(d => d.id !== id);
+    deleteCloudItem('grafica_despesas_pessoais', id);
+    saveGraficaDespesasPessoais();
+    renderGraficaApp();
+};
+
+window.editGraficaDespesaPessoal = function(id) {
+    const d = graficaDespesasPessoais.find(item => item.id === id);
+    if (!d) return;
+    editingGraficaDespesaPessoalId = id;
+    document.getElementById('graficaPessoalId').value = d.id;
+    document.getElementById('graficaPessoalVencimento').value = d.vencimento;
+    document.getElementById('graficaPessoalPagamento').value = d.pagamento || '';
+    document.getElementById('graficaPessoalCategoria').value = d.categoria;
+    document.getElementById('graficaPessoalDescricao').value = d.descricao;
+    document.getElementById('graficaPessoalValor').value = d.valor;
+    document.getElementById('graficaPessoalStatus').value = d.status;
+
+    document.getElementById('graficaPessoalFormWrapper').classList.remove('hidden');
+};
+
+function exportGraficaCsv() {
+    const m = document.getElementById('graficaMonthFilter').value;
+    const vendas = graficaVendas.filter(e => monthKey(e.data) === m);
+
+    let csv = 'Data;Cliente;TipoItem;Detalhes;Quantidade;CustoTotal;PrecoTotal;Lucro;FormaPagamento;Observacoes\n';
+    vendas.forEach(v => {
+        csv += `"${v.data}";"${v.cliente || ''}";"${v.tipoItem}";"${v.detalhes}";${v.qtd};${v.custoTotal.toFixed(2)};${v.precoTotal.toFixed(2)};${v.lucro.toFixed(2)};"${v.formaPagamento}";"${v.obs || ''}"\n`;
+    });
+
+    downloadCSV(csv, `relatorio_grafica_${m}.csv`);
+    showToast('Relatório CSV exportado!', 'success');
 }

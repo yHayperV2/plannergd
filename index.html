@@ -89,6 +89,14 @@
                             <span class="account-type-desc">Estoque, compras de mercadoria e controle de vendas</span>
                         </div>
                     </label>
+                    <label class="account-type-card" id="typeCardGrafica">
+                        <input type="radio" name="accountType" value="grafica" required>
+                        <div class="account-type-body">
+                            <div class="account-type-icon grafica-icon"><i class="fa-solid fa-print"></i></div>
+                            <span class="account-type-title">Gráfica Rápida</span>
+                            <span class="account-type-desc">Calculadora m², A4, Estoque, DRE e Finanças Pessoais</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
@@ -960,9 +968,641 @@
     </div>
 </div>
 
+<!-- ===================== GRÁFICA RÁPIDA APP ===================== -->
+<div class="app-container hidden" id="graficaApp">
+    <header class="app-header-container">
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-icon grafica-brand"><i class="fa-solid fa-print"></i></div>
+                <div>
+                    <h1>Gestão de Gráfica Rápida & Impressões</h1>
+                    <p class="subtitle">Calculadora Balcão (A4 & Plotter m²), Estoque, DRE e Finanças Pessoais</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="user-profile-badge">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span id="graficaHeaderUserName">Usuário</span>
+                    <button id="graficaLogoutBtn" class="btn btn-sm btn-ghost"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                </div>
+                <button id="graficaSyncBtn" class="btn btn-outline" style="min-width: 130px;"><i class="fa-solid fa-cloud-arrow-up"></i> <span id="graficaSyncTime">Salvo</span></button>
+                <button id="openGraficaSettingsBtn" class="btn btn-outline"><i class="fa-solid fa-gear"></i> Configurações</button>
+                <button id="exportGraficaCsvBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Exportar CSV</button>
+            </div>
+        </div>
+        <div class="controls-bar">
+            <nav class="tabs-nav" id="graficaTabsNav">
+                <button class="tab-btn active" data-gtab="gtab-balcao"><i class="fa-solid fa-calculator"></i> Balcão & Calculadora</button>
+                <button class="tab-btn" data-gtab="gtab-produtos"><i class="fa-solid fa-boxes-stacked"></i> Catálogo & Estoque</button>
+                <button class="tab-btn" data-gtab="gtab-despesas-op"><i class="fa-solid fa-gears"></i> Despesas da Loja</button>
+                <button class="tab-btn" data-gtab="gtab-dre"><i class="fa-solid fa-chart-line"></i> DRE & Métricas</button>
+                <button class="tab-btn" data-gtab="gtab-pessoal"><i class="fa-solid fa-house-chimney"></i> Gastos Pessoais / Casa</button>
+            </nav>
+            <div class="filter-group">
+                <label for="graficaMonthFilter"><i class="fa-regular fa-calendar-days"></i> Período/Mês:</label>
+                <select id="graficaMonthFilter" class="select-input"></select>
+            </div>
+        </div>
+    </header>
+
+    <!-- TAB 1: Balcão & Calculadoras de Venda Rápida -->
+    <div id="gtab-balcao" class="gtab-content active">
+        <div class="calc-grid">
+            <!-- Calculadora Impressão A4 -->
+            <div class="card-box calc-card">
+                <h3><i class="fa-solid fa-copy text-primary"></i> Impressão Rápida A4</h3>
+                <p class="section-desc">Precificação dinâmica por tipo de papel, quantidade e cor.</p>
+                <div class="form-group">
+                    <label for="calcA4Papel">Tipo de Papel:</label>
+                    <select id="calcA4Papel" class="form-control">
+                        <option value="sulfite" data-cost="0.08" data-price="0.30">📄 Sulfite 75g (Padrão)</option>
+                        <option value="cartao" data-cost="0.35" data-price="1.20">🃏 Papel Cartão 240g/250g</option>
+                        <option value="foto" data-cost="0.50" data-price="2.50">🖼️ Papel Fotográfico Glossy</option>
+                        <option value="adesivo" data-cost="0.60" data-price="3.00">🏷️ Papel Adesivo A4</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="calcA4Acabamento">Cor / Lados:</label>
+                        <select id="calcA4Acabamento" class="form-control">
+                            <option value="pb_frente" data-mult="1.0">Frente P/B (Preto & Branco)</option>
+                            <option value="color_frente" data-mult="1.8">Frente Colorida</option>
+                            <option value="pb_verso" data-mult="1.6">Frente e Verso P/B</option>
+                            <option value="color_verso" data-mult="3.0">Frente e Verso Colorido</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="calcA4Qtd">Qtd Cópias/Páginas:</label>
+                        <input type="number" id="calcA4Qtd" value="1" min="1" class="form-control">
+                    </div>
+                </div>
+                <div class="calc-summary-box">
+                    <div>Custo Prod.: <strong id="calcA4CustoTotal">R$ 0,08</strong></div>
+                    <div>Preço Final: <strong id="calcA4PrecoTotal" class="text-success fs-1-1">R$ 0,30</strong></div>
+                </div>
+                <div class="form-group" style="margin-top:10px;">
+                    <input type="text" id="calcA4Cliente" placeholder="Nome do Cliente (opcional)" class="form-control form-control-sm">
+                </div>
+                <button type="button" id="btnVenderA4" class="btn btn-primary btn-block"><i class="fa-solid fa-cart-plus"></i> Registrar Venda A4</button>
+            </div>
+
+            <!-- Calculadora Plotter m² -->
+            <div class="card-box calc-card">
+                <h3><i class="fa-solid fa-scroll text-accent"></i> Plotter Grandes Formatos (m²)</h3>
+                <p class="section-desc">Cálculo por largura x altura em centímetros.</p>
+                <div class="form-group">
+                    <label for="calcPlotterMaterial">Material / Mídia:</label>
+                    <select id="calcPlotterMaterial" class="form-control">
+                        <option value="vinil" data-costm2="18.00" data-pricem2="55.00">🎨 Adesivo Vinil Promocional (m²)</option>
+                        <option value="lona" data-costm2="15.00" data-pricem2="48.00">🚩 Lona Banner 440g (m²)</option>
+                        <option value="foto_plotter" data-costm2="30.00" data-pricem2="90.00">🖼️ Papel Fotográfico Plotter (m²)</option>
+                        <option value="transparente" data-costm2="25.00" data-pricem2="75.00">✨ Vinil Transparente / Backlit (m²)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="calcPlotterLargura">Largura (cm):</label>
+                        <input type="number" id="calcPlotterLargura" placeholder="Ex: 100" value="100" min="1" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="calcPlotterAltura">Altura (cm):</label>
+                        <input type="number" id="calcPlotterAltura" placeholder="Ex: 100" value="100" min="1" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="calcPlotterQtd">Qtd Unid.:</label>
+                        <input type="number" id="calcPlotterQtd" value="1" min="1" class="form-control">
+                    </div>
+                </div>
+                <div class="calc-summary-box">
+                    <div>Área: <strong id="calcPlotterM2">1.00 m²</strong> | Custo: <strong id="calcPlotterCustoTotal">R$ 18,00</strong></div>
+                    <div>Preço Final: <strong id="calcPlotterPrecoTotal" class="text-success fs-1-1">R$ 55,00</strong></div>
+                </div>
+                <div class="form-group" style="margin-top:10px;">
+                    <input type="text" id="calcPlotterCliente" placeholder="Nome do Cliente (opcional)" class="form-control form-control-sm">
+                </div>
+                <button type="button" id="btnVenderPlotter" class="btn btn-primary btn-block"><i class="fa-solid fa-cart-plus"></i> Registrar Venda Plotter</button>
+            </div>
+        </div>
+
+        <!-- Venda Rápida de Produtos do Estoque -->
+        <section class="card-box">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-basket-shopping"></i> Venda de Produtos Padronizados do Estoque</h3>
+                    <p class="section-desc">Cartões de visita, panfletos, ímãs e talões com baixa automática no estoque.</p>
+                </div>
+            </div>
+            <form id="vendaBalcaoForm" class="entry-form">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;">
+                        <label for="vendaBalcaoProduto">Selecione o Produto *</label>
+                        <select id="vendaBalcaoProduto" class="form-control" required>
+                            <option value="">-- Selecione um Produto cadastrado --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="vendaBalcaoQtd">Quantidade *</label>
+                        <input type="number" id="vendaBalcaoQtd" value="1" min="1" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="vendaBalcaoCliente">Cliente</label>
+                        <input type="text" id="vendaBalcaoCliente" placeholder="Ex: Maria Santos" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="vendaBalcaoPagamento">Forma de Pagamento</label>
+                        <select id="vendaBalcaoPagamento" class="form-control">
+                            <option value="PIX">⚡ PIX</option>
+                            <option value="Dinheiro">💵 Dinheiro</option>
+                            <option value="Cartão de Crédito">💳 Cartão de Crédito</option>
+                            <option value="Cartão de Débito">💳 Cartão de Débito</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label for="vendaBalcaoObs">Observações / Detalhes</label>
+                        <input type="text" id="vendaBalcaoObs" placeholder="Ex: Arte enviada pelo cliente" class="form-control">
+                    </div>
+                    <div class="form-group" style="min-width:180px; display:flex; align-items:flex-end;">
+                        <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-check"></i> Finalizar Venda</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Histórico de Vendas / Pedidos da Gráfica -->
+        <section class="card-box">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Pedidos & Vendas da Gráfica</h3>
+                    <p class="section-desc">Registro detalhado de serviços prestados no período.</p>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Item / Serviço</th>
+                            <th>Detalhes / Qtd</th>
+                            <th>Custo Total</th>
+                            <th>Preço Total</th>
+                            <th>Lucro (R$)</th>
+                            <th>Pagamento</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="graficaVendasTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- TAB 2: Catálogo & Controle de Estoque -->
+    <div id="gtab-produtos" class="gtab-content">
+        <section class="kpi-grid">
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Produtos Cadastrados</span>
+                    <h2 id="kpiGraficaTotalProdutos">0</h2>
+                    <span class="kpi-subtext" id="kpiGraficaTiposCount">0 itens no estoque</span>
+                </div>
+            </div>
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Alerta de Estoque Mínimo</span>
+                    <h2 id="kpiGraficaAlertasEstoque">0</h2>
+                    <span class="kpi-subtext" style="color:var(--danger-color)">Itens com qtd crítica</span>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-vault"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Valor em Custo de Estoque</span>
+                    <h2 id="kpiGraficaEstoqueCusto">R$ 0,00</h2>
+                    <span class="kpi-subtext" id="kpiGraficaEstoqueVenda">Potencial Venda: R$ 0,00</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-box" style="margin-top:0">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-box"></i> Gerenciar Catálogo & Estoque da Gráfica</h3>
+                    <p class="section-desc">Cadastre papéis, cartões, panfletos, ímãs e insumos com custo, preço e alerta mínimo.</p>
+                </div>
+                <button id="openAddGraficaProdutoBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Novo Produto / Insumo</button>
+            </div>
+
+            <!-- Form de Cadastro / Edição de Produto Gráfico -->
+            <div id="graficaProdutoFormWrapper" class="inline-form-wrapper hidden">
+                <form id="graficaProdutoForm" class="entry-form">
+                    <input type="hidden" id="graficaProdutoId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="graficaProdutoTipo">Tipo de Item *</label>
+                            <select id="graficaProdutoTipo" class="form-control" required>
+                                <option value="padronizado">📇 Produto Padronizado (Cartão, Panfleto, Ímã, Talão)</option>
+                                <option value="impressao_a4">📄 Insumo / Papel A4</option>
+                                <option value="plotter">📜 Insumo / Mídia Plotter (m²)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:2;">
+                            <label for="graficaProdutoNome">Nome do Produto / Serviço *</label>
+                            <input type="text" id="graficaProdutoNome" placeholder="Ex: Cartão de Visita 9x5cm Verniz Local" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoCategoria">Categoria</label>
+                            <select id="graficaProdutoCategoria" class="form-control">
+                                <option value="Cartão de Visita">📇 Cartão de Visita</option>
+                                <option value="Panfleto / Folheto">📄 Panfleto / Folheto</option>
+                                <option value="Ímã de Geladeira">🧲 Ímã de Geladeira</option>
+                                <option value="Talão / Bloco">📑 Talão / Bloco de Notas</option>
+                                <option value="Impressão A4">📄 Impressão A4</option>
+                                <option value="Plotter / Banner">📜 Plotter / Banner / Adesivo</option>
+                                <option value="Outros">📦 Outros</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="graficaProdutoMedidas">Medidas / Formato</label>
+                            <input type="text" id="graficaProdutoMedidas" placeholder="Ex: 9x5cm, 10x14cm, A4" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoPapel">Tipo de Papel / Mídia</label>
+                            <input type="text" id="graficaProdutoPapel" placeholder="Ex: Couchê 300g, Lona 440g" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoAcabamento">Acabamento</label>
+                            <input type="text" id="graficaProdutoAcabamento" placeholder="Ex: Verniz Local, Laminação Fosca" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="graficaProdutoCusto">Custo Unitário / Produção (R$) *</label>
+                            <input type="number" step="0.01" id="graficaProdutoCusto" placeholder="0.00" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoMargem">Margem Lucro Desejada (%)</label>
+                            <input type="number" step="0.1" id="graficaProdutoMargem" placeholder="Ex: 100" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoPreco">Preço Venda Final (R$) *</label>
+                            <input type="number" step="0.01" id="graficaProdutoPreco" placeholder="0.00" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoEstoque">Qtd Estoque *</label>
+                            <input type="number" id="graficaProdutoEstoque" placeholder="0" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaProdutoEstoqueMin">Estoque Mínimo (Alerta)</label>
+                            <input type="number" id="graficaProdutoEstoqueMin" value="5" placeholder="5" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="margin-top:10px;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-floppy-disk"></i> Salvar Produto</button>
+                        <button type="button" id="cancelGraficaProdutoBtn" class="btn btn-outline">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-responsive" style="margin-top: 15px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Produto / Serviço</th>
+                            <th>Tipo / Categoria</th>
+                            <th>Medidas / Acabamento</th>
+                            <th>Custo Unit.</th>
+                            <th>Preço Venda</th>
+                            <th>Margem (%)</th>
+                            <th>Qtd Estoque</th>
+                            <th>Status Estoque</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="graficaProdutosTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- TAB 3: Despesas Operacionais e Fixas da Gráfica -->
+    <div id="gtab-despesas-op" class="gtab-content">
+        <section class="kpi-grid">
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-gears"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Despesas Loja (Mês)</span>
+                    <h2 id="kpiGraficaDespesasOpTotal">R$ 0,00</h2>
+                    <span class="kpi-subtext" id="kpiGraficaDespesasOpCount">0 registros</span>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-check-circle"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Total Pago</span>
+                    <h2 id="kpiGraficaDespesasOpPagas">R$ 0,00</h2>
+                    <span class="kpi-subtext">Contas quitadas no período</span>
+                </div>
+            </div>
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-clock"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Pendente de Pagamento</span>
+                    <h2 id="kpiGraficaDespesasOpPendentes">R$ 0,00</h2>
+                    <span class="kpi-subtext">Contas a pagar</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-box" style="margin-top:0">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-file-invoice-dollar"></i> Registros de Despesas Operacionais & Fixas</h3>
+                    <p class="section-desc">Tinta/Toner, manutenção de impressoras, aluguel da gráfica, energia da loja e mídias em lote.</p>
+                </div>
+                <button id="openAddGraficaDespesaOpBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Nova Despesa Operacional</button>
+            </div>
+
+            <!-- Inline Form para Despesa Operacional -->
+            <div id="graficaDespesaOpFormWrapper" class="inline-form-wrapper hidden">
+                <form id="graficaDespesaOpForm" class="entry-form">
+                    <input type="hidden" id="graficaDespesaOpId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="graficaDespesaOpData">Data *</label>
+                            <input type="date" id="graficaDespesaOpData" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaDespesaOpCategoria">Categoria *</label>
+                            <select id="graficaDespesaOpCategoria" class="form-control" required>
+                                <option value="Tinta / Toner">🖨️ Tinta / Toner / Insumos Impressão</option>
+                                <option value="Manutenção de Máquinas">🔧 Manutenção de Máquinas / Assistência</option>
+                                <option value="Papel / Mídias em Lote">📦 Papel / Mídias / Lona em Lote</option>
+                                <option value="Aluguel do Ponto">🏢 Aluguel do Ponto / Imóvel</option>
+                                <option value="Energia Elétrica Loja">⚡ Energia Elétrica da Loja</option>
+                                <option value="Taxas de Cartão / Impostos">💳 Taxas de Cartão / Impostos</option>
+                                <option value="Outros">📦 Outras Despesas Operacionais</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:2;">
+                            <label for="graficaDespesaOpDescricao">Descrição / Fornecedor *</label>
+                            <input type="text" id="graficaDespesaOpDescricao" placeholder="Ex: Tinta Ecotank 4 Cores Epson" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaDespesaOpValor">Valor (R$) *</label>
+                            <input type="number" step="0.01" id="graficaDespesaOpValor" placeholder="0.00" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaDespesaOpStatus">Status</label>
+                            <select id="graficaDespesaOpStatus" class="form-control">
+                                <option value="Pago">✅ Pago</option>
+                                <option value="Pendente">⏳ Pendente</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top:10px;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-floppy-disk"></i> Salvar Despesa</button>
+                        <button type="button" id="cancelGraficaDespesaOpBtn" class="btn btn-outline">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-responsive" style="margin-top:15px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Categoria</th>
+                            <th>Descrição / Fornecedor</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="graficaDespesasOpTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- TAB 4: DRE Financeira & Métricas de Lucro -->
+    <div id="gtab-dre" class="gtab-content">
+        <section class="card-box">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-chart-pie"></i> DRE — Demonstração do Resultado do Exercício</h3>
+                    <p class="section-desc">Lucro Bruto (Faturamento - CMV) e Lucro Líquido Real (descontando custos fixos da gráfica).</p>
+                </div>
+            </div>
+            
+            <div class="dre-container">
+                <table class="dre-table">
+                    <tbody>
+                        <tr class="dre-row-header">
+                            <td><strong>1. FATURAMENTO TOTAL (RECEITA BRUTA)</strong></td>
+                            <td class="text-right"><strong id="dreReceitaBruta" class="text-success">R$ 0,00</strong></td>
+                        </tr>
+                        <tr class="dre-subrow">
+                            <td>(-) Custo das Mercadorias & Serviços Vendidos (CMV / CSV)</td>
+                            <td class="text-right text-danger" id="dreCmv">R$ 0,00</td>
+                        </tr>
+                        <tr class="dre-row-highlight">
+                            <td><strong>2. LUCRO BRUTO (RECEITA - CUSTOS DIRETOS)</strong></td>
+                            <td class="text-right"><strong id="dreLucroBruto">R$ 0,00</strong></td>
+                        </tr>
+                        <tr class="dre-subrow">
+                            <td>Margem Bruta (%)</td>
+                            <td class="text-right" id="dreMargemBruta">0.0%</td>
+                        </tr>
+                        <tr class="dre-subrow">
+                            <td>(-) Despesas Operacionais & Fixas da Gráfica (Loja/Insumos)</td>
+                            <td class="text-right text-danger" id="dreDespesasOp">R$ 0,00</td>
+                        </tr>
+                        <tr class="dre-row-final">
+                            <td><strong>3. LUCRO LÍQUIDO REAL DA GRÁFICA</strong></td>
+                            <td class="text-right"><strong id="dreLucroLiquido" class="fs-1-2">R$ 0,00</strong></td>
+                        </tr>
+                        <tr class="dre-subrow">
+                            <td>Margem Líquida Real (%)</td>
+                            <td class="text-right" id="dreMargemLiquida">0.0%</td>
+                        </tr>
+                        <tr class="dre-subrow">
+                            <td>(-) Retiradas Pessoais / Pró-Labore para Gastos da Casa</td>
+                            <td class="text-right text-warning" id="dreRetiradasPessoais">R$ 0,00</td>
+                        </tr>
+                        <tr class="dre-row-balance">
+                            <td><strong>4. SALDO LÍQUIDO FINAL DO CAIXA (EMPRESA)</strong></td>
+                            <td class="text-right"><strong id="dreSaldoFinal">R$ 0,00</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- TAB 5: Controle de Gastos Pessoais / Casa -->
+    <div id="gtab-pessoal" class="gtab-content">
+        <section class="kpi-grid">
+            <div class="kpi-card income">
+                <div class="kpi-icon"><i class="fa-solid fa-house"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Gastos Domésticos (Mês)</span>
+                    <h2 id="kpiGraficaPessoalTotal">R$ 0,00</h2>
+                    <span class="kpi-subtext">Total de contas da casa</span>
+                </div>
+            </div>
+            <div class="kpi-card profit">
+                <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Pago pela Gráfica</span>
+                    <h2 id="kpiGraficaPessoalPagas">R$ 0,00</h2>
+                    <span class="kpi-subtext">Retiradas já efetuadas</span>
+                </div>
+            </div>
+            <div class="kpi-card fuel">
+                <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-label">Pendente de Pagamento</span>
+                    <h2 id="kpiGraficaPessoalPendentes">R$ 0,00</h2>
+                    <span class="kpi-subtext">A vencer / Em aberto</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-box" style="margin-top:0">
+            <div class="card-header table-header-flex">
+                <div>
+                    <h3><i class="fa-solid fa-hand-holding-dollar"></i> Separação Financeira — Gastos Pessoais do Proprietário</h3>
+                    <p class="section-desc">Monitore as despesas da sua casa (Moradia, Alimentação, Carro, Educação) para saber exatamente seu Pró-labore necessário.</p>
+                </div>
+                <button id="openAddGraficaPessoalBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Nova Despesa Pessoal</button>
+            </div>
+
+            <!-- Inline Form Despesa Pessoal -->
+            <div id="graficaPessoalFormWrapper" class="inline-form-wrapper hidden">
+                <form id="graficaPessoalForm" class="entry-form">
+                    <input type="hidden" id="graficaPessoalId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="graficaPessoalVencimento">Vencimento *</label>
+                            <input type="date" id="graficaPessoalVencimento" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaPessoalPagamento">Data Pagamento (opcional)</label>
+                            <input type="date" id="graficaPessoalPagamento" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaPessoalCategoria">Categoria *</label>
+                            <select id="graficaPessoalCategoria" class="form-control" required>
+                                <option value="Casa / Moradia">🏡 Casa / Moradia (Aluguel, Condomínio)</option>
+                                <option value="Carro / Manutenção">🚗 Carro / Manutenção</option>
+                                <option value="Luz / Energia Elétrica">⚡ Luz / Energia Elétrica Casa</option>
+                                <option value="Mercado / Alimentação">🛒 Mercado / Alimentação</option>
+                                <option value="Escola / Educação">🎓 Escola / Educação</option>
+                                <option value="Fatura de Cartão de Crédito">💳 Fatura de Cartão de Crédito</option>
+                                <option value="Combustível / Gasolina">⛽ Combustível / Gasolina</option>
+                                <option value="Outros Pessoais">👤 Outros Gastos Pessoais</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:2;">
+                            <label for="graficaPessoalDescricao">Descrição / Observação *</label>
+                            <input type="text" id="graficaPessoalDescricao" placeholder="Ex: Conta de Luz referente a Julho" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaPessoalValor">Valor (R$) *</label>
+                            <input type="number" step="0.01" id="graficaPessoalValor" placeholder="0.00" required class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="graficaPessoalStatus">Status</label>
+                            <select id="graficaPessoalStatus" class="form-control">
+                                <option value="Pendente">⏳ Pendente</option>
+                                <option value="Pago">✅ Pago</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top:10px;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;"><i class="fa-solid fa-floppy-disk"></i> Salvar Despesa Pessoal</button>
+                        <button type="button" id="cancelGraficaPessoalBtn" class="btn btn-outline">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="table-responsive" style="margin-top:15px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Vencimento</th>
+                            <th>Pagamento</th>
+                            <th>Categoria</th>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="graficaPessoalTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- Modal Configurações Gráfica -->
+<div id="graficaSettingsModal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-gear"></i> Configurações — Gráfica Rápida</h3>
+            <button class="modal-close-btn" id="closeGraficaSettingsBtn">&times;</button>
+        </div>
+        <form id="graficaSettingsForm" class="modal-form">
+            <div class="form-group">
+                <label for="gBackupEmail">E-mail para Receber Backups:</label>
+                <input type="email" id="gBackupEmail" placeholder="seuemail@gmail.com" class="form-control">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="gEmailjsServiceId">EmailJS — Service ID:</label>
+                    <input type="text" id="gEmailjsServiceId" placeholder="service_xxxxxxx" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="gEmailjsTemplateId">EmailJS — Template ID:</label>
+                    <input type="text" id="gEmailjsTemplateId" placeholder="template_xxxxxxx" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="gEmailjsPublicKey">EmailJS — Public Key:</label>
+                <input type="text" id="gEmailjsPublicKey" placeholder="xxxxxxxxxxxxxxxx" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelGraficaSettingsBtn" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Toast Notification Container -->
 <div id="toastContainer" class="toast-container"></div>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
