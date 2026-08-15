@@ -2001,9 +2001,17 @@ function setupGraficaTabs() {
     document.querySelectorAll('#graficaTabsNav .tab-btn').forEach(btn => {
         btn.onclick = () => {
             document.querySelectorAll('#graficaTabsNav .tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('#graficaApp .gtab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#graficaApp .gtab-content').forEach(c => {
+                c.classList.remove('active');
+                c.style.display = 'none';
+            });
+
             btn.classList.add('active');
-            document.getElementById(btn.dataset.gtab).classList.add('active');
+            const target = document.getElementById(btn.dataset.gtab);
+            if (target) {
+                target.classList.add('active');
+                target.style.display = 'flex';
+            }
             renderGraficaApp();
         };
     });

@@ -278,8 +278,8 @@ body {
 .tab-btn:hover { color: var(--text-primary); background: rgba(255,255,255,.05); }
 .tab-btn.active { background: linear-gradient(135deg, var(--accent-blue), #2563eb); color: #fff; box-shadow: 0 4px 12px rgba(59,130,246,.3); }
 
-.tab-content, .rtab-content { display: none; flex-direction: column; gap: 24px; }
-.tab-content.active, .rtab-content.active { display: flex; }
+.tab-content, .rtab-content, .gtab-content { display: none; flex-direction: column; gap: 24px; }
+.tab-content.active, .rtab-content.active, .gtab-content.active { display: flex; }
 
 .filter-group { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--text-secondary); }
 .select-input {
