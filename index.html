@@ -1021,13 +1021,46 @@
                     <div class="form-row">
                         <div class="form-group" style="flex:2;">
                             <label for="bPadronizadoSelect">Selecione o Produto *</label>
-                            <select id="bPadronizadoSelect" class="form-control" required>
+                            <select id="bPadronizadoSelect" class="form-control" required onchange="handleProductSelectionChange()">
                                 <option value="">-- Selecione do Catálogo --</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        
+                        <!-- Lote Dropdown -->
+                        <div class="form-group" id="bLoteGroup" style="display:none;">
+                            <label for="bLoteSelect">Quantidade (Lote) *</label>
+                            <select id="bLoteSelect" class="form-control" onchange="recalculateBalcaoSummary()">
+                                <option value="1000">1.000 un</option>
+                                <option value="2500">2.500 un</option>
+                                <option value="5000">5.000 un</option>
+                                <option value="10000">10.000 un</option>
+                            </select>
+                        </div>
+
+                        <!-- Manual Qtd -->
+                        <div class="form-group" id="bManualQtdGroup">
                             <label for="bPadronizadoQtd">Quantidade *</label>
-                            <input type="number" id="bPadronizadoQtd" value="1" min="1" class="form-control" required>
+                            <input type="number" id="bPadronizadoQtd" value="1" min="1" class="form-control" oninput="recalculateBalcaoSummary()">
+                        </div>
+                    </div>
+
+                    <!-- Plotter Fields -->
+                    <div class="form-row" id="bPlotterFields" style="display:none; margin-top: 10px;">
+                        <div class="form-group">
+                            <label for="bPlotterLargura">Largura (cm) *</label>
+                            <input type="number" id="bPlotterLargura" placeholder="Ex: 100" class="form-control" oninput="recalculateBalcaoSummary()">
+                        </div>
+                        <div class="form-group">
+                            <label for="bPlotterAltura">Altura (cm) *</label>
+                            <input type="number" id="bPlotterAltura" placeholder="Ex: 200" class="form-control" oninput="recalculateBalcaoSummary()">
+                        </div>
+                    </div>
+
+                    <!-- A4 Fields -->
+                    <div class="form-row" id="bA4Fields" style="display:none; margin-top: 10px;">
+                        <div class="form-group">
+                            <label for="bA4Gramatura">Gramatura (g) *</label>
+                            <input type="number" id="bA4Gramatura" placeholder="Ex: 90, 180, 240" class="form-control" oninput="recalculateBalcaoSummary()">
                         </div>
                     </div>
                 </div>

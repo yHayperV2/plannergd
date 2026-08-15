@@ -1963,6 +1963,68 @@ function saveGraficaSettings() {
 function loadGraficaProdutos() {
     const d = localStorage.getItem(userKey('grafica_produtos'));
     graficaProdutos = d ? JSON.parse(d) : [];
+    
+    if (graficaProdutos.length === 0) {
+        seedGraficaProdutos();
+    }
+}
+
+function seedGraficaProdutos() {
+    const defaultProds = [
+        // Plotter
+        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Branco' },
+        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Transparente' },
+        { cat: 'Plotter / Banner', n: 'Adesivo Vinil Blackout' },
+        { cat: 'Plotter / Banner', n: 'Lona' },
+        
+        // A4
+        { cat: 'Impressão A4', n: 'Sulfite' },
+        { cat: 'Impressão A4', n: 'Papel Cartão' },
+        { cat: 'Impressão A4', n: 'Papel Fotográfico' },
+        { cat: 'Impressão A4', n: 'Papel Adesivo' },
+        
+        // Panfletos
+        ...['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'].flatMap(t => 
+            ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Panfleto / Folheto', n: `Panfleto ${t} Couchê 150g ${c}` }))
+        ),
+        
+        // Cartões
+        ...['9x4cm', '9x5cm'].flatMap(t => 
+            ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Cartão de Visita', n: `Cartão de Visita ${t} Couchê 250g ${c}` }))
+        ),
+        
+        // Talões
+        ...['10x14cm', '10x15cm', '10x21cm', '14x20cm', '15x21cm', '20x21cm'].flatMap(t => 
+            ['Sulfite', 'Sulfite + Copiativo'].flatMap(m => 
+                ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Talão / Bloco', n: `Talão ${t} ${m} ${c}` }))
+            )
+        ),
+        
+        // Crachás
+        ...['4x0', '4x4'].map(c => ({ cat: 'Outros', n: `Crachá PVC 9x4cm 0.76mm ${c}` })),
+        
+        // Cardápios
+        ...['Sulfite', 'Papel Cartão', 'PVC / Plastificado'].flatMap(m => 
+            ['4x0', '4x1', '4x4'].map(c => ({ cat: 'Outros', n: `Cardápio A4 ${m} ${c}` }))
+        )
+    ];
+
+    graficaProdutos = defaultProds.map((p, idx) => ({
+        id: 'seed_' + idx + '_' + Date.now().toString(),
+        tipo: 'padronizado',
+        nome: p.n,
+        categoria: p.cat,
+        medidas: '',
+        tipoPapel: '',
+        acabamento: '',
+        custoUnitario: 0,
+        margemLucro: 100,
+        precoVenda: 0,
+        qtdEstoque: 1000,
+        estoqueMinimo: 100
+    }));
+
+    saveGraficaProdutos();
 }
 function saveGraficaProdutos() {
     localStorage.setItem(userKey('grafica_produtos'), JSON.stringify(graficaProdutos));
@@ -2055,16 +2117,55 @@ function setupGraficaCalculators() {
     recalculateBalcaoSummary();
 }
 
-function recalculateBalcaoSummary() {
+window.handleProductSelectionChange = function() {
+    const prodId = document.getElementById('bPadronizadoSelect').value;
+    const prod = graficaProdutos.find(p => p.id === prodId);
+    
+    document.getElementById('bLoteGroup').style.display = 'none';
+    document.getElementById('bManualQtdGroup').style.display = 'none';
+    document.getElementById('bPlotterFields').style.display = 'none';
+    document.getElementById('bA4Fields').style.display = 'none';
+
+    if (!prod) return;
+
+    if (prod.categoria.includes('Plotter')) {
+        document.getElementById('bManualQtdGroup').style.display = 'block';
+        document.getElementById('bPlotterFields').style.display = 'flex';
+    } else if (prod.categoria.includes('A4')) {
+        document.getElementById('bManualQtdGroup').style.display = 'block';
+        document.getElementById('bA4Fields').style.display = 'flex';
+    } else if (['Panfleto / Folheto', 'Cartão de Visita', 'Talão / Bloco', 'Ímã de Geladeira'].includes(prod.categoria)) {
+        document.getElementById('bLoteGroup').style.display = 'block';
+    } else {
+        document.getElementById('bManualQtdGroup').style.display = 'block';
+    }
+    
+    recalculateBalcaoSummary();
+};
+
+window.recalculateBalcaoSummary = function() {
     let custoTotal = 0;
     let precoTotal = 0;
 
     const prodId = document.getElementById('bPadronizadoSelect').value;
-    const q = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
     const prod = graficaProdutos.find(p => p.id === prodId);
     if (prod) {
-        custoTotal = prod.custoUnitario * q;
-        precoTotal = prod.precoVenda * q;
+        if (prod.categoria.includes('Plotter')) {
+            const l = parseFloat(document.getElementById('bPlotterLargura').value) || 0;
+            const a = parseFloat(document.getElementById('bPlotterAltura').value) || 0;
+            const q = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
+            const m2 = (l * a) / 10000;
+            custoTotal = prod.custoUnitario * m2 * q;
+            precoTotal = prod.precoVenda * m2 * q;
+        } else if (['Panfleto / Folheto', 'Cartão de Visita', 'Talão / Bloco', 'Ímã de Geladeira'].includes(prod.categoria)) {
+            const q = parseInt(document.getElementById('bLoteSelect').value) || 1000;
+            custoTotal = prod.custoUnitario * q;
+            precoTotal = prod.precoVenda * q;
+        } else {
+            const q = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
+            custoTotal = prod.custoUnitario * q;
+            precoTotal = prod.precoVenda * q;
+        }
     }
 
     const lucro = precoTotal - custoTotal;
@@ -2079,7 +2180,7 @@ function recalculateBalcaoSummary() {
         elLucro.innerText = lucro >= 0 ? `+${fmtR(lucro)}` : fmtR(lucro);
         elLucro.className = lucro >= 0 ? 'text-primary fs-1-1' : 'text-danger fs-1-1';
     }
-}
+};
 
 function handleBalcaoCheckoutSubmit() {
     const prodId = document.getElementById('bPadronizadoSelect').value;
@@ -2091,14 +2192,40 @@ function handleBalcaoCheckoutSubmit() {
     const prod = graficaProdutos.find(p => p.id === prodId);
     if (!prod) return;
 
-    const qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
-    
-    // Diminui estoque, mas permite vender negativo se quiser, ou podemos alertar
-    prod.qtdEstoque = Math.max(0, prod.qtdEstoque - qtd);
-    saveGraficaProdutos(); // Atualiza produtos
+    let qtd = 1;
+    let detalhes = prod.nome;
+    let custoTotal = 0;
+    let precoTotal = 0;
+    let m2Total = 0;
 
-    const custoTotal = prod.custoUnitario * qtd;
-    const precoTotal = prod.precoVenda * qtd;
+    if (prod.categoria.includes('Plotter')) {
+        const l = parseFloat(document.getElementById('bPlotterLargura').value) || 0;
+        const a = parseFloat(document.getElementById('bPlotterAltura').value) || 0;
+        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
+        const m2 = (l * a) / 10000;
+        m2Total = m2 * qtd;
+        custoTotal = prod.custoUnitario * m2 * qtd;
+        precoTotal = prod.precoVenda * m2 * qtd;
+        detalhes += ` (${l}x${a}cm)`;
+    } else if (['Panfleto / Folheto', 'Cartão de Visita', 'Talão / Bloco', 'Ímã de Geladeira'].includes(prod.categoria)) {
+        qtd = parseInt(document.getElementById('bLoteSelect').value) || 1000;
+        custoTotal = prod.custoUnitario * qtd;
+        precoTotal = prod.precoVenda * qtd;
+        detalhes += ` (Lote de ${qtd})`;
+    } else if (prod.categoria.includes('A4')) {
+        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
+        const gram = document.getElementById('bA4Gramatura').value || 'Padrão';
+        custoTotal = prod.custoUnitario * qtd;
+        precoTotal = prod.precoVenda * qtd;
+        detalhes += ` (${gram}g)`;
+    } else {
+        qtd = parseInt(document.getElementById('bPadronizadoQtd').value) || 1;
+        custoTotal = prod.custoUnitario * qtd;
+        precoTotal = prod.precoVenda * qtd;
+    }
+    
+    prod.qtdEstoque = Math.max(0, prod.qtdEstoque - qtd);
+    saveGraficaProdutos();
     
     const cliente = document.getElementById('bClienteNome').value.trim() || 'Balcão';
     const formaPagamento = document.getElementById('bPagamentoForma').value;
@@ -2108,26 +2235,25 @@ function handleBalcaoCheckoutSubmit() {
         id: Date.now().toString(),
         data: todayISO(),
         cliente,
-        tipoItem: 'Produto do Catálogo',
+        tipoItem: prod.categoria,
         produtoId: prod.id,
-        detalhes: `${prod.nome} (${prod.medidas || 'Unidade'})`,
+        detalhes,
+        m2Total: m2Total > 0 ? m2Total : null,
         qtd,
         custoTotal,
         precoTotal,
         lucro: precoTotal - custoTotal,
         formaPagamento,
         obs,
-        status: 'Pendente Entrega' // Novo campo default
+        status: 'Pendente Entrega'
     };
 
     graficaVendas.unshift(venda);
     saveGraficaVendas();
     showToast(`Pedido registrado com sucesso!`, 'success');
 
-    // Reset Form
     document.getElementById('graficaBalcaoForm').reset();
-    document.getElementById('bPadronizadoQtd').value = 1;
-    recalculateBalcaoSummary();
+    handleProductSelectionChange();
     renderGraficaApp();
 }
 
