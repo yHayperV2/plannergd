@@ -2119,22 +2119,9 @@ function populateGraficaMonthFilter() {
 
 // ----- Calculators & Balcão -----
 function setupGraficaCalculators() {
-    const form = document.getElementById('graficaBalcaoForm');
-    if (form) {
-        form.querySelectorAll('input, select').forEach(el => {
-            el.addEventListener('input', recalculateBalcaoSummary);
-            el.addEventListener('change', recalculateBalcaoSummary);
-        });
-
-        form.onsubmit = (e) => {
-            e.preventDefault();
-            handleBalcaoCheckoutSubmit();
-        };
-    }
-
-    recalculateBalcaoSummary();
+    // A nova interface do PDV usa renderCategoryGrid() e eventos inline no HTML.
+    // Esta função foi esvaziada para evitar conflitos com a versão antiga.
 }
-
 const pdvCatalog = [
     // Grupo A: Tiragem Fixa
     {
