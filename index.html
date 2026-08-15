@@ -1102,13 +1102,19 @@
                     <!-- Checkout Panel -->
                     <div class="p-5 bg-slate-900 border-t border-slate-800">
                         
-                        <!-- Customer Name -->
-                        <div class="mb-4">
+                        <!-- Customer Name & Phone -->
+                        <div class="mb-4 space-y-3">
                             <div class="flex bg-slate-800 rounded-lg border border-slate-700 overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
                                 <span class="px-3 py-2 text-slate-400 bg-slate-850 border-r border-slate-700 flex items-center justify-center">
                                     <i class="fa-solid fa-user"></i>
                                 </span>
-                                <input type="text" id="clientName" placeholder="Nome do Cliente (Opcional)" class="w-full bg-transparent p-2 text-sm text-white outline-none border-none focus:ring-0">
+                                <input type="text" id="clientName" placeholder="Nome do Cliente (Obrigatório)" class="w-full bg-transparent p-2 text-sm text-white outline-none border-none focus:ring-0">
+                            </div>
+                            <div class="flex bg-slate-800 rounded-lg border border-slate-700 overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
+                                <span class="px-3 py-2 text-slate-400 bg-slate-850 border-r border-slate-700 flex items-center justify-center">
+                                    <i class="fa-solid fa-phone"></i>
+                                </span>
+                                <input type="text" id="clientPhone" placeholder="Celular / WhatsApp (Obrigatório)" class="w-full bg-transparent p-2 text-sm text-white outline-none border-none focus:ring-0">
                             </div>
                         </div>
 
@@ -1604,6 +1610,22 @@
                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Modal Detalhes do Pedido Gráfica -->
+<div id="graficaOrderModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-file-invoice"></i> Detalhes do Pedido</h3>
+            <button class="modal-close-btn" onclick="closeGraficaOrderModal()">&times;</button>
+        </div>
+        <div class="modal-body p-4" id="graficaOrderModalContent">
+            <!-- Conteúdo injetado via JS -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="closeGraficaOrderModal()" class="btn btn-outline">Fechar</button>
+        </div>
     </div>
 </div>
 

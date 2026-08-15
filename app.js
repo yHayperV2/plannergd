@@ -2504,7 +2504,14 @@ window.finalizeSale = function() {
         return;
     }
 
-    const cliente = document.getElementById('clientName').value.trim() || 'Balcão';
+    const cliente = document.getElementById('clientName').value.trim();
+    const telefone = document.getElementById('clientPhone').value.trim();
+    
+    if (!cliente || !telefone) {
+        showToast('Nome do cliente e celular são obrigatórios!', 'error');
+        return;
+    }
+
     const formaPagamento = document.getElementById('paymentMethod').value;
     const orderStatus = document.getElementById('orderStatus').value;
     const desconto = parseFloat(document.getElementById('summaryDiscount').value) || 0;
@@ -2523,6 +2530,7 @@ window.finalizeSale = function() {
             id: Date.now().toString() + Math.floor(Math.random()*1000), 
             data: dataVenda,
             cliente,
+            telefone,
             tipoItem: item.categoria,
             produtoId: item.produtoId,
             detalhes: item.detalhes,
@@ -2543,6 +2551,7 @@ window.finalizeSale = function() {
 
     graficaCart = [];
     document.getElementById('clientName').value = '';
+    document.getElementById('clientPhone').value = '';
     document.getElementById('summaryDiscount').value = 0;
     renderGraficaCart();
     renderGraficaApp();
@@ -2718,11 +2727,46 @@ function renderGraficaVendasTable() {
                 </select>
             </td>
             <td>
+                <button class="action-btn action-edit" onclick="viewOrderDetails('${v.id}')" title="Ver Detalhes"><i class="fa-solid fa-eye"></i></button>
                 <button class="action-btn action-delete" onclick="deleteGraficaVenda('${v.id}')" title="Excluir Venda"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `}).join('');
 }
+
+window.viewOrderDetails = function(id) {
+    const v = graficaVendas.find(x => x.id === id);
+    if (!v) return;
+    
+    const content = document.getElementById('graficaOrderModalContent');
+    content.innerHTML = `
+        <div class="space-y-3 text-slate-300">
+            <p><strong>ID do Pedido:</strong> ${v.id}</p>
+            <p><strong>Data:</strong> ${dateBR(v.data)}</p>
+            <p><strong>Status:</strong> <span class="badge ${v.status === 'Pendente Aprovação' ? 'badge-warning' : (v.status === 'Pendente Entrega' ? 'badge-info' : 'badge-success')}">${v.status || 'Entregue'}</span></p>
+            <hr class="border-slate-700">
+            <p><strong>Cliente:</strong> ${v.cliente || 'Não informado'}</p>
+            <p><strong>Telefone / WhatsApp:</strong> ${v.telefone || 'Não informado'}</p>
+            <hr class="border-slate-700">
+            <p><strong>Tipo de Item:</strong> ${v.tipoItem}</p>
+            <p><strong>Detalhes do Item:</strong> ${v.detalhes}</p>
+            <p><strong>Quantidade:</strong> ${v.qtd}</p>
+            ${v.m2Total ? `<p><strong>Metragem Total:</strong> ${v.m2Total.toFixed(2)} m²</p>` : ''}
+            <p><strong>Observações:</strong> ${v.obs || 'Nenhuma'}</p>
+            <hr class="border-slate-700">
+            <p><strong>Forma de Pagamento:</strong> ${v.formaPagamento || 'PIX'}</p>
+            <p><strong>Preço Final:</strong> <span class="text-white font-bold">${fmtR(v.precoTotal)}</span></p>
+            <p><strong>Custo Total:</strong> ${fmtR(v.custoTotal)}</p>
+            <p><strong>Lucro Estimado:</strong> <span class="text-success">+${fmtR(v.lucro)}</span></p>
+        </div>
+    `;
+    
+    document.getElementById('graficaOrderModal').classList.remove('hidden');
+};
+
+window.closeGraficaOrderModal = function() {
+    document.getElementById('graficaOrderModal').classList.add('hidden');
+};
 
 window.changeGraficaVendaStatus = function(id, newStatus) {
     const v = graficaVendas.find(x => x.id === id);
