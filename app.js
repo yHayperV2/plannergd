@@ -3021,6 +3021,200 @@ window.resetPricesToDefault = function() {
 
 window.switchCatalogTab = function(tabName) {
     document.getElementById('catalogTabMatriz').classList.add('hidden');
+    const elSaldo = document.getElementById('dreSaldoFinal');
+    elSaldo.textContent = fmtR(saldoFinal);
+    elSaldo.className = saldoFinal >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
+}
+
+function renderGraficaDespesasPessoaisTable() {
+    const tbody = document.getElementById('graficaPessoalTableBody');
+    if (!tbody) return;
+    const m = document.getElementById('graficaMonthFilter').value;
+    const filtered = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
+
+    if (!filtered.length) {
+        tbody.innerHTML = emptyRow(7, 'Nenhuma despesa pessoal / doméstica registrada no período.');
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(d => `
+        <tr>
+            <td>${dateBR(d.vencimento)}</td>
+            <td>${d.pagamento ? dateBR(d.pagamento) : '-'}</td>
+            <td><span class="badge badge-secondary">${d.categoria}</span></td>
+            <td><strong>${d.descricao}</strong></td>
+            <td class="text-danger"><strong>${fmtR(d.valor)}</strong></td>
+            <td>
+                <span class="badge ${d.status === 'Pago' ? 'badge-success' : 'badge-danger'}">${d.status}</span>
+            </td>
+            <td>
+                <button class="action-btn action-edit" onclick="editGraficaDespesaPessoal('${d.id}')" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn action-delete" onclick="deleteGraficaDespesaPessoal('${d.id}')" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateGraficaKpis() {
+    const m = document.getElementById('graficaMonthFilter').value;
+
+    // Tab Produtos KPIs
+    document.getElementById('kpiGraficaTotalProdutos').textContent = graficaProdutos.length;
+    document.getElementById('kpiGraficaTiposCount').textContent = `${graficaProdutos.length} itens no catálogo`;
+
+    const alertasCount = graficaProdutos.filter(p => p.qtdEstoque <= (p.estoqueMinimo || 5)).length;
+    document.getElementById('kpiGraficaAlertasEstoque').textContent = alertasCount;
+
+    const custoEstoqueTotal = graficaProdutos.reduce((acc, p) => acc + (p.custoUnitario * p.qtdEstoque), 0);
+    const vendaEstoqueTotal = graficaProdutos.reduce((acc, p) => acc + (p.precoVenda * p.qtdEstoque), 0);
+    document.getElementById('kpiGraficaEstoqueCusto').textContent = fmtR(custoEstoqueTotal);
+    document.getElementById('kpiGraficaEstoqueVenda').textContent = `Potencial Venda: ${fmtR(vendaEstoqueTotal)}`;
+
+    // Tab Despesas Op KPIs
+    const despesasOpMes = graficaDespesasOp.filter(e => monthKey(e.data) === m);
+    const totalOp = despesasOpMes.reduce((acc, d) => acc + d.valor, 0);
+    const pagasOp = despesasOpMes.filter(d => d.status === 'Pago').reduce((acc, d) => acc + d.valor, 0);
+    const pendentesOp = despesasOpMes.filter(d => d.status === 'Pendente').reduce((acc, d) => acc + d.valor, 0);
+
+    document.getElementById('kpiGraficaDespesasOpTotal').textContent = fmtR(totalOp);
+    document.getElementById('kpiGraficaDespesasOpCount').textContent = `${despesasOpMes.length} registros em ${m}`;
+    document.getElementById('kpiGraficaDespesasOpPagas').textContent = fmtR(pagasOp);
+    document.getElementById('kpiGraficaDespesasOpPendentes').textContent = fmtR(pendentesOp);
+
+    // Tab Pessoal KPIs
+    const despesasPessoaisMes = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
+    const totalPess = despesasPessoaisMes.reduce((acc, d) => acc + d.valor, 0);
+    const pagasPess = despesasPessoaisMes.filter(d => d.status === 'Pago').reduce((acc, d) => acc + d.valor, 0);
+    const pendentesPess = despesasPessoaisMes.filter(d => d.status === 'Pendente').reduce((acc, d) => acc + d.valor, 0);
+
+    document.getElementById('kpiGraficaPessoalTotal').textContent = fmtR(totalPess);
+    document.getElementById('kpiGraficaPessoalPagas').textContent = fmtR(pagasPess);
+    document.getElementById('kpiGraficaPessoalPendentes').textContent = fmtR(pendentesPess);
+}
+
+// ----- Deletes & Edits -----
+window.deleteGraficaVenda = function(id) {
+    if (!confirm('Excluir este registro de venda?')) return;
+    graficaVendas = graficaVendas.filter(v => v.id !== id);
+    deleteCloudItem('grafica_vendas', id);
+    saveGraficaVendas();
+    renderGraficaApp();
+};
+
+window.deleteGraficaProduto = function(id) {
+    if (!confirm('Excluir este produto do catálogo?')) return;
+    graficaProdutos = graficaProdutos.filter(p => p.id !== id);
+    deleteCloudItem('grafica_produtos', id);
+    saveGraficaProdutos();
+    renderGraficaApp();
+};
+
+window.editGraficaProduto = function(id) {
+    const prod = graficaProdutos.find(p => p.id === id);
+    if (!prod) return;
+    editingGraficaProdutoId = id;
+    document.getElementById('graficaProdutoId').value = prod.id;
+    document.getElementById('graficaProdutoNome').value = prod.nome;
+    document.getElementById('graficaProdutoCategoria').value = prod.categoria;
+    document.getElementById('graficaProdutoCusto').value = prod.custoUnitario;
+    document.getElementById('graficaProdutoMargem').value = prod.margemLucro;
+    document.getElementById('graficaProdutoPreco').value = prod.precoVenda;
+    document.getElementById('graficaProdutoEstoque').value = prod.qtdEstoque;
+    document.getElementById('graficaProdutoEstoqueMin').value = prod.estoqueMinimo || 5;
+
+    document.getElementById('graficaProdutoFormWrapper').classList.remove('hidden');
+};
+
+window.deleteGraficaDespesaOp = function(id) {
+    if (!confirm('Excluir esta despesa operacional?')) return;
+    graficaDespesasOp = graficaDespesasOp.filter(d => d.id !== id);
+    deleteCloudItem('grafica_despesas_op', id);
+    saveGraficaDespesasOp();
+    renderGraficaApp();
+};
+
+window.editGraficaDespesaOp = function(id) {
+    const d = graficaDespesasOp.find(item => item.id === id);
+    if (!d) return;
+    editingGraficaDespesaOpId = id;
+    document.getElementById('graficaDespesaOpId').value = d.id;
+    document.getElementById('graficaDespesaOpData').value = d.data;
+    document.getElementById('graficaDespesaOpCategoria').value = d.categoria;
+    document.getElementById('graficaDespesaOpDescricao').value = d.descricao;
+    document.getElementById('graficaDespesaOpValor').value = d.valor;
+    document.getElementById('graficaDespesaOpStatus').value = d.status;
+
+    document.getElementById('graficaDespesaOpFormWrapper').classList.remove('hidden');
+};
+
+window.deleteGraficaDespesaPessoal = function(id) {
+    if (!confirm('Excluir esta despesa pessoal?')) return;
+    graficaDespesasPessoais = graficaDespesasPessoais.filter(d => d.id !== id);
+    deleteCloudItem('grafica_despesas_pessoais', id);
+    saveGraficaDespesasPessoais();
+    renderGraficaApp();
+};
+
+window.editGraficaDespesaPessoal = function(id) {
+    const d = graficaDespesasPessoais.find(item => item.id === id);
+    if (!d) return;
+    editingGraficaDespesaPessoalId = id;
+    document.getElementById('graficaPessoalId').value = d.id;
+    document.getElementById('graficaPessoalVencimento').value = d.vencimento;
+    document.getElementById('graficaPessoalPagamento').value = d.pagamento || '';
+    document.getElementById('graficaPessoalCategoria').value = d.categoria;
+    document.getElementById('graficaPessoalDescricao').value = d.descricao;
+    document.getElementById('graficaPessoalValor').value = d.valor;
+    document.getElementById('graficaPessoalStatus').value = d.status;
+
+    document.getElementById('graficaPessoalFormWrapper').classList.remove('hidden');
+};
+
+function exportGraficaCsv() {
+    const m = document.getElementById('graficaMonthFilter').value;
+    const vendas = graficaVendas.filter(e => monthKey(e.data) === m);
+
+    let csv = 'Data;Cliente;TipoItem;Detalhes;Quantidade;CustoTotal;PrecoTotal;Lucro;FormaPagamento;Observacoes\n';
+    vendas.forEach(v => {
+        csv += `"${v.data}";"${v.cliente || ''}";"${v.tipoItem}";"${v.detalhes}";${v.qtd};${v.custoTotal.toFixed(2)};${v.precoTotal.toFixed(2)};${v.lucro.toFixed(2)};"${v.formaPagamento}";"${v.obs || ''}"\n`;
+    });
+
+    downloadCSV(csv, `relatorio_grafica_${m}.csv`);
+    showToast('Relatório CSV exportado!', 'success');
+}
+
+// ==========================================
+// CATÁLOGO DINÂMICO & PRECIFICAÇÃO
+// ==========================================
+
+function getPriceFor(key, defaultPrice) {
+    if (graficaPrices[key] !== undefined) {
+        return graficaPrices[key];
+    }
+    return defaultPrice;
+}
+
+window.onPriceChange = function(key, el) {
+    const val = parseFloat(el.value);
+    if (!isNaN(val)) {
+        graficaPrices[key] = val;
+    } else {
+        delete graficaPrices[key];
+    }
+}
+
+window.resetPricesToDefault = function() {
+    if (confirm('Tem certeza que deseja apagar todos os preços personalizados e voltar às fórmulas automáticas padrão?')) {
+        graficaPrices = {};
+        saveGraficaPrices();
+        renderCatalogMatrix();
+        renderCatalogUnidade();
+        renderCatalogM2();
+    }
+}
+
+window.switchCatalogTab = function(tabName) {
+    document.getElementById('catalogTabMatriz').classList.add('hidden');
     document.getElementById('catalogTabUnidade').classList.add('hidden');
     document.getElementById('catalogTabM2').classList.add('hidden');
     
@@ -3037,5 +3231,137 @@ window.switchCatalogTab = function(tabName) {
         document.getElementById('catalogTabMatriz').classList.remove('hidden');
         document.getElementById('btnTabMatriz').classList.add('border-brand-500', 'text-brand-400');
         renderCatalogMatrix();
+    } else if (tabName === 'unidade') {
+        document.getElementById('catalogTabUnidade').classList.remove('hidden');
+        document.getElementById('btnTabUnidade').classList.add('border-brand-500', 'text-brand-400');
+        renderCatalogUnidade();
+    } else if (tabName === 'm2') {
+        document.getElementById('catalogTabM2').classList.remove('hidden');
+        document.getElementById('btnTabM2').classList.add('border-brand-500', 'text-brand-400');
+        renderCatalogM2();
+    }
+}
+
+window.renderCatalogMatrix = function() {
+    const tbody = document.getElementById('catalogMatrixBody');
+    if (!tbody) return;
+    
+    const prodKey = document.getElementById('catalogFilterProd').value;
+    const prod = pdvCatalog.find(p => p.id === prodKey);
+    
+    if (!prod || prod.group !== 'A') {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">Produto não aplicável a matriz de tiragens.</td></tr>`;
+        return;
+    }
+
+    let html = '';
+    const tamanhosArr = prod.tamanhos || [];
+    const papelArr = prod.papel || [];
+    const coresArr = prod.cores || [];
+    const tiragensArr = prod.tiragens || [];
+    
+    tamanhosArr.forEach(tamanho => {
+        papelArr.forEach(papel => {
+            coresArr.forEach(cor => {
+                tiragensArr.forEach(tiragem => {
+                    const defaultPrice = prod.calcPrice(tamanho, papel, cor, tiragem);
+                    const key = `${prod.id}_${tamanho}_${papel}_${cor}_${tiragem}`;
+                    const currentPrice = getPriceFor(key, defaultPrice);
+                    
+                    html += `
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 text-slate-300">${tamanho}</td>
+                            <td class="p-3 text-slate-300">${papel}</td>
+                            <td class="p-3 text-slate-300">${cor}</td>
+                            <td class="p-3 text-slate-300 font-medium">${tiragem.toLocaleString('pt-BR')} un</td>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end items-center">
+                                    <span class="text-slate-500 mr-2">R$</span>
+                                    <input type="number" step="0.01" value="${currentPrice.toFixed(2)}" 
+                                           onchange="onPriceChange('${key}', this)"
+                                           class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-right focus:border-brand-500 focus:outline-none">
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        });
+    });
+    
+    tbody.innerHTML = html;
+}
+
+window.renderCatalogUnidade = function() {
+    const tbody = document.getElementById('catalogUnidadeBody');
+    if (!tbody) return;
+    
+    const prods = pdvCatalog.filter(p => p.group === 'B');
+    let html = '';
+    
+    prods.forEach(prod => {
+        const tamanhosArr = prod.tamanhos || [];
+        const papelArr = prod.papel || [];
+        const coresArr = prod.cores || [];
+        
+        tamanhosArr.forEach(tamanho => {
+            papelArr.forEach(papel => {
+                coresArr.forEach(cor => {
+                    const defaultPrice = prod.calcPrice(tamanho, papel, cor, 1);
+                    const key = `${prod.id}_${tamanho}_${papel}_${cor}`;
+                    const currentPrice = getPriceFor(key, defaultPrice);
+                    
+                    html += `
+                        <tr class="hover:bg-slate-800 transition">
+                            <td class="p-3 font-medium text-brand-400">${prod.nome || prod.name}</td>
+                            <td class="p-3 text-slate-300">${papel} - ${tamanho}</td>
+                            <td class="p-3 text-slate-300">${cor}</td>
+                            <td class="p-3 text-right">
+                                <div class="flex justify-end items-center">
+                                    <span class="text-slate-500 mr-2">R$</span>
+                                    <input type="number" step="0.01" value="${currentPrice.toFixed(2)}" 
+                                           onchange="onPriceChange('${key}', this)"
+                                           class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-right focus:border-brand-500 focus:outline-none">
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        });
+    });
+    tbody.innerHTML = html;
+}
+
+window.renderCatalogM2 = function() {
+    const tbody = document.getElementById('catalogM2Body');
+    if (!tbody) return;
+    
+    const prods = pdvCatalog.filter(p => p.group === 'C');
+    let html = '';
+    
+    prods.forEach(prod => {
+        const papelArr = prod.papel || [];
+        papelArr.forEach(papel => {
+            const defaultPrice = prod.calcPrice(100, 100, prod.precoM2 || 45, 1);
+            const key = `${prod.id}_${papel}`;
+            const currentPrice = getPriceFor(key, defaultPrice);
+            
+            html += `
+                <tr class="hover:bg-slate-800 transition">
+                    <td class="p-3 font-medium text-brand-400">${papel}</td>
+                    <td class="p-3 text-slate-300">${prod.nome || prod.name}</td>
+                    <td class="p-3 text-right">
+                        <div class="flex justify-end items-center">
+                            <span class="text-slate-500 mr-2">R$</span>
+                            <input type="number" step="0.01" value="${currentPrice.toFixed(2)}" 
+                                   onchange="onPriceChange('${key}', this)"
+                                   class="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-right focus:border-brand-500 focus:outline-none">
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    });
     tbody.innerHTML = html;
 }
