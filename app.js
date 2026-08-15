@@ -1,4 +1,4 @@
-﻿// =====================================================
+// =====================================================
 // STATE
 // =====================================================
 let usersList = [];
@@ -2863,18 +2863,19 @@ function renderGraficaDespesasPessoaisTable() {
 
 function updateGraficaKpis() {
     const m = document.getElementById('graficaMonthFilter').value;
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
     // Tab Produtos KPIs
-    document.getElementById('kpiGraficaTotalProdutos').textContent = graficaProdutos.length;
-    document.getElementById('kpiGraficaTiposCount').textContent = `${graficaProdutos.length} itens no catálogo`;
+    setEl('kpiGraficaTotalProdutos', graficaProdutos.length);
+    setEl('kpiGraficaTiposCount', `${graficaProdutos.length} itens no catálogo`);
 
     const alertasCount = graficaProdutos.filter(p => p.qtdEstoque <= (p.estoqueMinimo || 5)).length;
-    document.getElementById('kpiGraficaAlertasEstoque').textContent = alertasCount;
+    setEl('kpiGraficaAlertasEstoque', alertasCount);
 
     const custoEstoqueTotal = graficaProdutos.reduce((acc, p) => acc + (p.custoUnitario * p.qtdEstoque), 0);
     const vendaEstoqueTotal = graficaProdutos.reduce((acc, p) => acc + (p.precoVenda * p.qtdEstoque), 0);
-    document.getElementById('kpiGraficaEstoqueCusto').textContent = fmtR(custoEstoqueTotal);
-    document.getElementById('kpiGraficaEstoqueVenda').textContent = `Potencial Venda: ${fmtR(vendaEstoqueTotal)}`;
+    setEl('kpiGraficaEstoqueCusto', fmtR(custoEstoqueTotal));
+    setEl('kpiGraficaEstoqueVenda', `Potencial Venda: ${fmtR(vendaEstoqueTotal)}`);
 
     // Tab Despesas Op KPIs
     const despesasOpMes = graficaDespesasOp.filter(e => monthKey(e.data) === m);
@@ -2882,10 +2883,10 @@ function updateGraficaKpis() {
     const pagasOp = despesasOpMes.filter(d => d.status === 'Pago').reduce((acc, d) => acc + d.valor, 0);
     const pendentesOp = despesasOpMes.filter(d => d.status === 'Pendente').reduce((acc, d) => acc + d.valor, 0);
 
-    document.getElementById('kpiGraficaDespesasOpTotal').textContent = fmtR(totalOp);
-    document.getElementById('kpiGraficaDespesasOpCount').textContent = `${despesasOpMes.length} registros em ${m}`;
-    document.getElementById('kpiGraficaDespesasOpPagas').textContent = fmtR(pagasOp);
-    document.getElementById('kpiGraficaDespesasOpPendentes').textContent = fmtR(pendentesOp);
+    setEl('kpiGraficaDespesasOpTotal', fmtR(totalOp));
+    setEl('kpiGraficaDespesasOpCount', `${despesasOpMes.length} registros em ${m}`);
+    setEl('kpiGraficaDespesasOpPagas', fmtR(pagasOp));
+    setEl('kpiGraficaDespesasOpPendentes', fmtR(pendentesOp));
 
     // Tab Pessoal KPIs
     const despesasPessoaisMes = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
@@ -2893,9 +2894,9 @@ function updateGraficaKpis() {
     const pagasPess = despesasPessoaisMes.filter(d => d.status === 'Pago').reduce((acc, d) => acc + d.valor, 0);
     const pendentesPess = despesasPessoaisMes.filter(d => d.status === 'Pendente').reduce((acc, d) => acc + d.valor, 0);
 
-    document.getElementById('kpiGraficaPessoalTotal').textContent = fmtR(totalPess);
-    document.getElementById('kpiGraficaPessoalPagas').textContent = fmtR(pagasPess);
-    document.getElementById('kpiGraficaPessoalPendentes').textContent = fmtR(pendentesPess);
+    setEl('kpiGraficaPessoalTotal', fmtR(totalPess));
+    setEl('kpiGraficaPessoalPagas', fmtR(pagasPess));
+    setEl('kpiGraficaPessoalPendentes', fmtR(pendentesPess));
 }
 
 // ----- Deletes & Edits -----
