@@ -2995,32 +2995,33 @@ function exportGraficaCsv() {
 
 function getPriceFor(key, defaultPrice) {
     if (graficaPrices[key] !== undefined) {
-        return graficaPrices[key];
-    }
-    return defaultPrice;
-}
+    const despesasPessoaisMes = graficaDespesasPessoais.filter(e => monthKey(e.vencimento) === m);
 
-window.onPriceChange = function(key, el) {
-    const val = parseFloat(el.value);
-    if (!isNaN(val)) {
-        graficaPrices[key] = val;
-    } else {
-        delete graficaPrices[key];
-    }
-}
+    const receitaBruta = vendasMes.reduce((acc, v) => acc + (v.precoTotal || 0), 0);
+    const cmv = vendasMes.reduce((acc, v) => acc + (v.custoTotal || 0), 0);
+    const lucroBruto = receitaBruta - cmv;
+    const margemBruta = receitaBruta > 0 ? (lucroBruto / receitaBruta) * 100 : 0;
 
-window.resetPricesToDefault = function() {
-    if (confirm('Tem certeza que deseja apagar todos os preços personalizados e voltar às fórmulas automáticas padrão?')) {
-        graficaPrices = {};
-        saveGraficaPrices();
-        renderCatalogMatrix();
-        renderCatalogUnidade();
-        renderCatalogM2();
-    }
-}
+    const despesasOp = despesasOpMes.reduce((acc, d) => acc + (d.valor || 0), 0);
+    const lucroLiquido = lucroBruto - despesasOp;
+    const margemLiquida = receitaBruta > 0 ? (lucroLiquido / receitaBruta) * 100 : 0;
 
-window.switchCatalogTab = function(tabName) {
-    document.getElementById('catalogTabMatriz').classList.add('hidden');
+    const retiradasPessoais = despesasPessoaisMes.reduce((acc, d) => acc + (d.valor || 0), 0);
+    const saldoFinal = lucroLiquido - retiradasPessoais;
+
+    document.getElementById('dreReceitaBruta').textContent = fmtR(receitaBruta);
+    document.getElementById('dreCmv').textContent = fmtR(cmv);
+    document.getElementById('dreLucroBruto').textContent = fmtR(lucroBruto);
+    document.getElementById('dreMargemBruta').textContent = `${margemBruta.toFixed(1)}%`;
+    document.getElementById('dreDespesasOp').textContent = fmtR(despesasOp);
+
+    const elLiquido = document.getElementById('dreLucroLiquido');
+    elLiquido.textContent = fmtR(lucroLiquido);
+    elLiquido.className = lucroLiquido >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
+
+    document.getElementById('dreMargemLiquida').textContent = `${margemLiquida.toFixed(1)}%`;
+    document.getElementById('dreRetiradasPessoais').textContent = fmtR(retiradasPessoais);
+
     const elSaldo = document.getElementById('dreSaldoFinal');
     elSaldo.textContent = fmtR(saldoFinal);
     elSaldo.className = saldoFinal >= 0 ? 'text-success fs-1-2' : 'text-danger fs-1-2';
