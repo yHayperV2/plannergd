@@ -521,8 +521,10 @@
                 <div class="template-preview">Assunto: Backup Financeiro - {{backup_date}}<br>Corpo:<br>Olá {{from_name}},<br><br>Backup automático do dia {{backup_date}}.<br>Tipo: {{account_type}}<br><br>{{summary}}<br><br>Sistema de Controle Financeiro.</div>
             </div>
             <div class="backup-actions">
-                <button type="button" id="manualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup Agora</button>
-                <button type="button" id="testEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio de E-mail</button>
+                <button type="button" id="manualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup JSON</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('importJsonFile').click()"><i class="fa-solid fa-upload"></i> Restaurar JSON</button>
+                <button type="button" id="testEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio</button>
+                <input type="file" id="importJsonFile" accept=".json" class="hidden" style="display:none">
             </div>
 
             <div class="modal-footer">
@@ -980,8 +982,10 @@
                 <div class="template-preview">Assunto: Backup Financeiro - {{backup_date}}<br>Corpo:<br>Olá {{from_name}},<br><br>Backup automático do dia {{backup_date}}.<br>Tipo: {{account_type}}<br><br>{{summary}}</div>
             </div>
             <div class="backup-actions">
-                <button type="button" id="rManualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup Agora</button>
-                <button type="button" id="rTestEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio de E-mail</button>
+                <button type="button" id="rManualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup JSON</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('roupasImportJsonFile').click()"><i class="fa-solid fa-upload"></i> Restaurar JSON</button>
+                <button type="button" id="rTestEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio</button>
+                <input type="file" id="roupasImportJsonFile" accept=".json" class="hidden" style="display:none">
             </div>
             <div class="modal-footer">
                 <button type="button" id="cancelRoupasSettingsBtn" class="btn btn-outline">Cancelar</button>
@@ -1640,6 +1644,16 @@
             <div class="form-group">
                 <label for="gEmailjsPublicKey">EmailJS — Public Key:</label>
                 <input type="text" id="gEmailjsPublicKey" placeholder="xxxxxxxxxxxxxxxx" class="form-control">
+            </div>
+            <div class="form-group">
+                <label><i class="fa-solid fa-code"></i> Template sugerido para o EmailJS:</label>
+                <div class="template-preview">Assunto: Backup Financeiro - {{backup_date}}<br>Corpo:<br>Olá {{from_name}},<br><br>Backup automático do dia {{backup_date}}.<br>Tipo: {{account_type}}<br><br>{{summary}}<br><br>Sistema de Controle Financeiro.</div>
+            </div>
+            <div class="backup-actions">
+                <button type="button" id="gManualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup JSON</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('graficaImportJsonFile').click()"><i class="fa-solid fa-upload"></i> Restaurar JSON</button>
+                <button type="button" id="gTestEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio</button>
+                <input type="file" id="graficaImportJsonFile" accept=".json" class="hidden" style="display:none">
             </div>
             <div class="modal-footer">
                 <button type="button" id="cancelGraficaSettingsBtn" class="btn btn-outline">Cancelar</button>

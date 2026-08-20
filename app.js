@@ -147,17 +147,31 @@ function showToast(msg, type = 'info') {
 // BACKUP & EMAIL SYSTEM
 // =====================================================
 function generateBackupObject() {
-    const isUber = currentUser ? currentUser.accountType === 'uber' : true;
+    const acc = currentUser ? currentUser.accountType : 'uber';
+    let dataObj = {};
+    let setObj = {};
+    
+    if (acc === 'uber') {
+        dataObj = { uberEntries, personalEntries };
+        setObj = uberSettings;
+    } else if (acc === 'roupas') {
+        dataObj = { estoqueItems, comprasEntries, vendasEntries };
+        setObj = roupasSettings;
+    } else if (acc === 'grafica') {
+        dataObj = { graficaProdutos, graficaVendas, graficaDespesasOp, graficaDespesasPessoais };
+        setObj = graficaSettings;
+    }
+
     return {
         system: "Controle Financeiro",
-        version: "2.0",
+        version: "2.1",
         user: currentUser ? currentUser.username : 'guest',
         userName: currentUser ? currentUser.name : 'Convidado',
-        accountType: currentUser ? currentUser.accountType : 'uber',
+        accountType: acc,
         backupDate: todayISO(),
         timestamp: new Date().toISOString(),
-        settings: isUber ? uberSettings : roupasSettings,
-        data: isUber ? { uberEntries, personalEntries } : { estoqueItems, comprasEntries, vendasEntries }
+        settings: setObj,
+        data: dataObj
     };
 }
 
@@ -190,7 +204,9 @@ function saveInternalBackup(backupObj) {
         accountType: backupObj.accountType,
         summary: backupObj.accountType === 'uber' 
             ? `${uberEntries.length} lançamentos Uber | ${personalEntries.length} despesas Casa`
-            : `${estoqueItems.length} produtos em estoque | ${vendasEntries.length} vendas`,
+            : backupObj.accountType === 'roupas'
+            ? `${estoqueItems.length} produtos | ${vendasEntries.length} vendas`
+            : `${graficaProdutos.length} opções | ${graficaVendas.length} vendas`,
         data: backupObj
     });
 
@@ -482,7 +498,7 @@ function handleRealtimeChange(payload) {
             renderGraficaApp();
         }
         showToast('Dados atualizados de outro dispositivo', 'info');
-    }, 500);
+    }, 50);
 }
 
 let lastSyncTimeStr = 'Salvo';
@@ -920,6 +936,11 @@ function setupUberListeners() {
         showToast('Backup JSON baixado com sucesso!', 'success');
     };
     document.getElementById('testEmailBtn').onclick = () => sendEmailBackup(true);
+
+    document.getElementById('importJsonFile').onchange = (e) => {
+        if (e.target.files[0]) restoreJSONBackup(e.target.files[0]);
+        e.target.value = '';
+    };
 }
 
 // ----- Main Render -----
@@ -1487,6 +1508,11 @@ function setupRoupasListeners() {
         showToast('Backup JSON baixado com sucesso!', 'success');
     };
     document.getElementById('rTestEmailBtn').onclick = () => sendEmailBackup(true);
+
+    document.getElementById('roupasImportJsonFile').onchange = (e) => {
+        if (e.target.files[0]) restoreJSONBackup(e.target.files[0]);
+        e.target.value = '';
+    };
 }
 
 // ----- Main Render -----
@@ -2049,6 +2075,74 @@ function detectSeparator(text) {
     const semicolons = (firstLines.match(/;/g) || []).length;
     const commas = (firstLines.match(/,/g) || []).length;
     return semicolons >= commas ? ';' : ',';
+}
+
+async function restoreJSONBackup(file) {
+    if (!confirm('Atenção: A restauração substituirá TODOS os dados atuais por este backup. Essa ação é irreversível. Deseja continuar?')) return;
+    
+    try {
+        const text = await readFileAsText(file);
+        const obj = JSON.parse(text);
+        
+        if (!obj.data || !obj.accountType) {
+            throw new Error('Arquivo de backup inválido ou incompatível.');
+        }
+
+        if (obj.accountType !== currentUser.accountType) {
+            throw new Error(`Este backup é do tipo '${obj.accountType}', mas sua conta atual é '${currentUser.accountType}'.`);
+        }
+
+        if (obj.accountType === 'uber') {
+            if (obj.data.uberEntries) uberEntries = obj.data.uberEntries;
+            if (obj.data.personalEntries) personalEntries = obj.data.personalEntries;
+            if (obj.settings) uberSettings = obj.settings;
+            localStorage.setItem(userKey('uber_finance_entries'), JSON.stringify(uberEntries));
+            localStorage.setItem(userKey('uber_finance_personal_entries'), JSON.stringify(personalEntries));
+            localStorage.setItem(userKey('uber_finance_settings'), JSON.stringify(uberSettings));
+            populateUberMonthFilter();
+            renderUberApp();
+        } else if (obj.accountType === 'roupas') {
+            if (obj.data.estoqueItems) estoqueItems = obj.data.estoqueItems;
+            if (obj.data.comprasEntries) comprasEntries = obj.data.comprasEntries;
+            if (obj.data.vendasEntries) vendasEntries = obj.data.vendasEntries;
+            if (obj.settings) roupasSettings = obj.settings;
+            localStorage.setItem(userKey('roupas_estoque'), JSON.stringify(estoqueItems));
+            localStorage.setItem(userKey('roupas_compras'), JSON.stringify(comprasEntries));
+            localStorage.setItem(userKey('roupas_vendas'), JSON.stringify(vendasEntries));
+            localStorage.setItem(userKey('roupas_finance_settings'), JSON.stringify(roupasSettings));
+            populateRoupasMonthFilter();
+            renderRoupasApp();
+        } else if (obj.accountType === 'grafica') {
+            if (obj.data.graficaProdutos) graficaProdutos = obj.data.graficaProdutos;
+            if (obj.data.graficaVendas) graficaVendas = obj.data.graficaVendas;
+            if (obj.data.graficaDespesasOp) graficaDespesasOp = obj.data.graficaDespesasOp;
+            if (obj.data.graficaDespesasPessoais) graficaDespesasPessoais = obj.data.graficaDespesasPessoais;
+            if (obj.settings) graficaSettings = obj.settings;
+            localStorage.setItem(userKey('grafica_produtos'), JSON.stringify(graficaProdutos));
+            localStorage.setItem(userKey('grafica_vendas'), JSON.stringify(graficaVendas));
+            localStorage.setItem(userKey('grafica_despesas_op'), JSON.stringify(graficaDespesasOp));
+            localStorage.setItem(userKey('grafica_despesas_pessoais'), JSON.stringify(graficaDespesasPessoais));
+            localStorage.setItem(userKey('grafica_settings'), JSON.stringify(graficaSettings));
+            populateGraficaMonthFilter();
+            renderGraficaApp();
+        }
+
+        // Tenta sincronizar a nuvem após restauração local
+        if (supabaseClient) {
+            await syncCloudSave();
+        }
+        
+        showToast('Backup JSON restaurado com sucesso!', 'success');
+        
+        // Fechar modais abertos
+        document.getElementById('settingsModal')?.classList.add('hidden');
+        document.getElementById('roupasSettingsModal')?.classList.add('hidden');
+        document.getElementById('graficaSettingsModal')?.classList.add('hidden');
+        
+    } catch(err) {
+        console.error('Erro na restauração:', err);
+        alert('Erro ao restaurar backup:\n' + err.message);
+    }
 }
 
 // =====================================================
@@ -3149,6 +3243,22 @@ function setupGraficaSettingsModal() {
         showToast('Configurações da Gráfica salvas!', 'success');
         closeModal();
     };
+
+    const gManual = document.getElementById('gManualBackupBtn');
+    if (gManual) gManual.onclick = () => {
+        downloadJSONBackup();
+        showToast('Backup JSON baixado com sucesso!', 'success');
+    };
+    const gTest = document.getElementById('gTestEmailBtn');
+    if (gTest) gTest.onclick = () => sendEmailBackup(true);
+
+    const gImport = document.getElementById('graficaImportJsonFile');
+    if (gImport) {
+        gImport.onchange = (e) => {
+            if (e.target.files[0]) restoreJSONBackup(e.target.files[0]);
+            e.target.value = '';
+        };
+    }
 }
 
 // ----- Renderers -----
