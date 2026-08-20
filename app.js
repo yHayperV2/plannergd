@@ -417,6 +417,74 @@ async function syncCloudLoad() {
     }
 }
 
+let realtimeChannel = null;
+let isSelfSync = false;
+
+function getRealtimeTables() {
+    if (!currentUser) return [];
+    if (currentUser.accountType === 'uber') return ['uber_entries', 'personal_entries', 'user_settings'];
+    if (currentUser.accountType === 'roupas') return ['estoque_items', 'compras_entries', 'vendas_entries', 'user_settings'];
+    if (currentUser.accountType === 'grafica') return ['grafica_produtos', 'grafica_vendas', 'grafica_despesas_op', 'grafica_despesas_pessoais', 'user_settings'];
+    return [];
+}
+
+function subscribeRealtime() {
+    if (!supabaseClient || !currentUser) return;
+    unsubscribeRealtime();
+
+    const tables = getRealtimeTables();
+    if (!tables.length) return;
+
+    realtimeChannel = supabaseClient.channel('db-sync-' + currentUser.username);
+
+    tables.forEach(table => {
+        realtimeChannel = realtimeChannel.on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: table },
+            (payload) => {
+                if (isSelfSync) return;
+                handleRealtimeChange(payload);
+            }
+        );
+    });
+
+    realtimeChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+            console.log('Realtime: conectado em tempo real');
+        }
+    });
+}
+
+function unsubscribeRealtime() {
+    if (realtimeChannel && supabaseClient) {
+        supabaseClient.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+    }
+}
+
+let realtimeReloadTimer = null;
+function handleRealtimeChange(payload) {
+    if (realtimeReloadTimer) clearTimeout(realtimeReloadTimer);
+    realtimeReloadTimer = setTimeout(async () => {
+        realtimeReloadTimer = null;
+        await syncCloudLoad();
+        lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        updateSyncTimeUI();
+
+        if (currentUser.accountType === 'uber') {
+            populateUberMonthFilter();
+            renderUberApp();
+        } else if (currentUser.accountType === 'roupas') {
+            populateRoupasMonthFilter();
+            renderRoupasApp();
+        } else if (currentUser.accountType === 'grafica') {
+            populateGraficaMonthFilter();
+            renderGraficaApp();
+        }
+        showToast('Dados atualizados de outro dispositivo', 'info');
+    }, 500);
+}
+
 let lastSyncTimeStr = 'Salvo';
 function updateSyncTimeUI() {
     const uBtn = document.getElementById('uberSyncTime');
@@ -448,6 +516,7 @@ async function deleteCloudItem(table, id) {
 
 async function syncCloudSave() {
     if (!supabaseClient || !currentUser) return;
+    isSelfSync = true;
     try {
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) return;
@@ -479,7 +548,10 @@ async function syncCloudSave() {
     } catch(err) {
         console.warn('Falha ao salvar no banco de dados da hospedagem:', err);
         alert('Erro ao sincronizar na nuvem:\n\n' + err.message);
+    } finally {
+        setTimeout(() => { isSelfSync = false; }, 2000);
     }
+}
 }
 
 async function handleRegister(e) {
@@ -618,6 +690,7 @@ async function handleLogin(e) {
 
 function handleLogout() {
     if (!confirm('Deseja sair do sistema?')) return;
+    unsubscribeRealtime();
     if (supabaseClient) supabaseClient.auth.signOut();
     localStorage.removeItem('uber_finance_logged_user');
     localStorage.removeItem('uber_finance_auth_token');
@@ -702,6 +775,8 @@ async function startUberSession() {
 
     // Daily backup check
     checkAndRunDailyBackup();
+
+    subscribeRealtime();
 }
 
 // ----- Storage -----
@@ -803,6 +878,15 @@ function setupUberListeners() {
     };
 
     document.getElementById('exportCsvBtn').onclick = exportUberCSV;
+
+    document.getElementById('importCsvFile').onchange = (e) => {
+        if (e.target.files[0]) {
+            if (confirm('Importar dados do CSV? Dados duplicados serão ignorados.')) {
+                importUberCSV(e.target.files[0]);
+            }
+            e.target.value = '';
+        }
+    };
 
     // Uber Settings & Backup listeners
     document.getElementById('openSettingsBtn').onclick = () => {
@@ -1241,6 +1325,8 @@ async function startRoupasSession() {
 
     // Daily backup check
     checkAndRunDailyBackup();
+
+    subscribeRealtime();
 }
 
 // ----- Storage -----
@@ -1365,6 +1451,15 @@ function setupRoupasListeners() {
 
     // Export
     document.getElementById('roupasExportCsvBtn').onclick = exportRoupasCSV;
+
+    document.getElementById('roupasImportCsvFile').onchange = (e) => {
+        if (e.target.files[0]) {
+            if (confirm('Importar dados do CSV? Dados duplicados serão ignorados.')) {
+                importRoupasCSV(e.target.files[0]);
+            }
+            e.target.value = '';
+        }
+    };
 
     // Roupas Settings & Backup listeners
     document.getElementById('openRoupasSettingsBtn').onclick = () => {
@@ -1910,6 +2005,298 @@ function exportRoupasCSV() {
 // =====================================================
 // SHARED UTILITIES
 // =====================================================
+
+function parseDateBR(d) {
+    if (!d) return '';
+    d = d.trim().replace(/"/g, '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    const parts = d.split('/');
+    if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    return '';
+}
+
+function parseCSVLine(line, sep) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+            if (ch === '"' && line[i+1] === '"') { current += '"'; i++; }
+            else if (ch === '"') inQuotes = false;
+            else current += ch;
+        } else {
+            if (ch === '"') inQuotes = true;
+            else if (ch === sep) { result.push(current.trim()); current = ''; }
+            else current += ch;
+        }
+    }
+    result.push(current.trim());
+    return result;
+}
+
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file, 'UTF-8');
+    });
+}
+
+function detectSeparator(text) {
+    const firstLines = text.split('\n').slice(0, 5).join('');
+    const semicolons = (firstLines.match(/;/g) || []).length;
+    const commas = (firstLines.match(/,/g) || []).length;
+    return semicolons >= commas ? ';' : ',';
+}
+
+// =====================================================
+// CSV IMPORT — UBER
+// =====================================================
+async function importUberCSV(file) {
+    try {
+        const text = await readFileAsText(file);
+        const sep = detectSeparator(text);
+        const lines = text.split('\n').map(l => l.replace(/\r/g, '').replace(/^\uFEFF/, ''));
+
+        let section = '';
+        let uberImported = 0, personalImported = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            if (line.startsWith('=== UBER')) { section = 'uber'; continue; }
+            if (line.startsWith('=== CASA')) { section = 'casa'; continue; }
+            if (line.startsWith('=== SALDO') || line.startsWith('=== RESUMO')) { section = ''; continue; }
+
+            if (section === 'uber') {
+                if (line.startsWith('Data') || line.startsWith('TOTAL')) continue;
+                const cols = parseCSVLine(line, sep);
+                if (cols.length < 6) continue;
+                const date = parseDateBR(cols[0]);
+                if (!date) continue;
+                const entry = {
+                    id: Date.now().toString() + '_u' + i,
+                    date,
+                    gross: parseFloat(cols[1]) || 0,
+                    fuel: parseFloat(cols[2]) || 0,
+                    other: parseFloat(cols[3]) || 0,
+                    otherDesc: cols[7] ? cols[7].replace(/"/g, '') : '',
+                    km: cols[6] ? parseFloat(cols[6]) || null : null
+                };
+                if (!uberEntries.find(e => e.date === entry.date && e.gross === entry.gross && e.fuel === entry.fuel)) {
+                    uberEntries.push(entry);
+                    uberImported++;
+                }
+            }
+
+            if (section === 'casa') {
+                if (line.startsWith('Data') || line.startsWith('TOTAL')) continue;
+                const cols = parseCSVLine(line, sep);
+                if (cols.length < 4) continue;
+                const date = parseDateBR(cols[0]);
+                if (!date) continue;
+                const entry = {
+                    id: Date.now().toString() + '_p' + i,
+                    date,
+                    category: cols[1] || 'Outros',
+                    desc: cols[2] ? cols[2].replace(/"/g, '') : '',
+                    value: parseFloat(cols[3]) || 0,
+                    status: cols[4] || 'Pendente'
+                };
+                if (!personalEntries.find(e => e.date === entry.date && e.category === entry.category && e.value === entry.value)) {
+                    personalEntries.push(entry);
+                    personalImported++;
+                }
+            }
+        }
+
+        if (uberImported === 0 && personalImported === 0) {
+            showToast('Nenhum dado novo encontrado no CSV. Verifique o formato do arquivo.', 'warning');
+            return;
+        }
+
+        saveUberEntries();
+        savePersonalEntries();
+        populateUberMonthFilter();
+        renderUberApp();
+        showToast(`Importado: ${uberImported} lancamento(s) Uber + ${personalImported} despesa(s) Casa`, 'success');
+    } catch(err) {
+        console.error('Erro ao importar CSV Uber:', err);
+        showToast('Erro ao importar CSV: ' + err.message, 'error');
+    }
+}
+
+// =====================================================
+// CSV IMPORT — ROUPAS
+// =====================================================
+async function importRoupasCSV(file) {
+    try {
+        const text = await readFileAsText(file);
+        const sep = detectSeparator(text);
+        const lines = text.split('\n').map(l => l.replace(/\r/g, '').replace(/^\uFEFF/, ''));
+
+        let section = '';
+        let estoqueImported = 0, comprasImported = 0, vendasImported = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            if (line.startsWith('=== ESTOQUE')) { section = 'estoque'; continue; }
+            if (line.startsWith('=== COMPRAS')) { section = 'compras'; continue; }
+            if (line.startsWith('=== VENDAS')) { section = 'vendas'; continue; }
+            if (line.startsWith('=== RESUMO') || line.startsWith('=== SALDO')) { section = ''; continue; }
+
+            if (section === 'estoque') {
+                if (line.startsWith('Produto') || line.startsWith('TOTAL')) continue;
+                const cols = parseCSVLine(line, sep);
+                if (cols.length < 5) continue;
+                const nome = cols[0].replace(/"/g, '');
+                if (!nome) continue;
+                if (!estoqueItems.find(e => e.nome === nome && e.categoria === cols[1])) {
+                    estoqueItems.push({
+                        id: Date.now().toString() + '_est' + i,
+                        nome,
+                        categoria: cols[1] || 'Camiseta',
+                        tamanho: 'M',
+                        qtd: parseInt(cols[2]) || 0,
+                        custo: parseFloat(cols[3]) || 0,
+                        precoVenda: parseFloat(cols[4]) || 0,
+                        dataEntrada: parseDateBR(cols[5]) || todayISO()
+                    });
+                    estoqueImported++;
+                }
+            }
+
+            if (section === 'compras') {
+                if (line.startsWith('Data') || line.startsWith('TOTAL')) continue;
+                const cols = parseCSVLine(line, sep);
+                if (cols.length < 4) continue;
+                const data = parseDateBR(cols[0]);
+                if (!data) continue;
+                const produto = cols[1] ? cols[1].replace(/"/g, '') : '';
+                const custo = parseFloat(cols[3]) || 0;
+                if (!comprasEntries.find(e => e.data === data && e.produto === produto && e.custo === custo)) {
+                    comprasEntries.push({
+                        id: Date.now().toString() + '_comp' + i,
+                        data,
+                        produto,
+                        qtd: parseInt(cols[2]) || null,
+                        custo,
+                        transporte: parseFloat(cols[4]) || 0,
+                        fornecedor: cols[6] ? cols[6].replace(/"/g, '') : ''
+                    });
+                    comprasImported++;
+                }
+            }
+
+            if (section === 'vendas') {
+                if (line.startsWith('Data') || line.startsWith('TOTAL')) continue;
+                const cols = parseCSVLine(line, sep);
+                if (cols.length < 5) continue;
+                const data = parseDateBR(cols[0]);
+                if (!data) continue;
+                const produto = cols[1] ? cols[1].replace(/"/g, '') : '';
+                const valor = parseFloat(cols[3]) || 0;
+                const custoRef = parseFloat(cols[4]) || 0;
+                if (!vendasEntries.find(e => e.data === data && e.produto === produto && e.valor === valor)) {
+                    vendasEntries.push({
+                        id: Date.now().toString() + '_vnd' + i,
+                        data,
+                        stockItemId: '',
+                        produto,
+                        tamanho: 'M',
+                        qtd: parseInt(cols[2]) || 1,
+                        valor,
+                        custoRef,
+                        lucro: parseFloat(cols[5]) || (valor - custoRef),
+                        obs: cols[6] ? cols[6].replace(/"/g, '') : ''
+                    });
+                    vendasImported++;
+                }
+            }
+        }
+
+        if (estoqueImported === 0 && comprasImported === 0 && vendasImported === 0) {
+            showToast('Nenhum dado novo encontrado no CSV. Verifique o formato do arquivo.', 'warning');
+            return;
+        }
+
+        if (estoqueImported) saveEstoque();
+        if (comprasImported) saveCompras();
+        if (vendasImported) saveVendas();
+        populateRoupasMonthFilter();
+        renderRoupasApp();
+        showToast(`Importado: ${estoqueImported} produto(s) + ${comprasImported} compra(s) + ${vendasImported} venda(s)`, 'success');
+    } catch(err) {
+        console.error('Erro ao importar CSV Roupas:', err);
+        showToast('Erro ao importar CSV: ' + err.message, 'error');
+    }
+}
+
+// =====================================================
+// CSV IMPORT — GRÁFICA
+// =====================================================
+async function importGraficaCSV(file) {
+    try {
+        const text = await readFileAsText(file);
+        const sep = detectSeparator(text);
+        const lines = text.split('\n').map(l => l.replace(/\r/g, '').replace(/^\uFEFF/, ''));
+
+        let imported = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            if (line.startsWith('Data') || line.startsWith('TOTAL')) continue;
+
+            const cols = parseCSVLine(line, sep);
+            if (cols.length < 8) continue;
+            const data = parseDateBR(cols[0]);
+            if (!data) continue;
+
+            const cliente = cols[1] ? cols[1].replace(/"/g, '') : '';
+            const precoTotal = parseFloat(cols[6]) || 0;
+
+            if (!graficaVendas.find(e => e.data === data && e.cliente === cliente && e.precoTotal === precoTotal)) {
+                graficaVendas.push({
+                    id: Date.now().toString() + '_gv' + i,
+                    data,
+                    cliente,
+                    tipoItem: cols[2] ? cols[2].replace(/"/g, '') : '',
+                    detalhes: cols[3] ? cols[3].replace(/"/g, '') : '',
+                    produtoId: '',
+                    larguraCm: 0,
+                    alturaCm: 0,
+                    m2Total: 0,
+                    qtd: parseInt(cols[4]) || 1,
+                    custoTotal: parseFloat(cols[5]) || 0,
+                    precoTotal,
+                    lucro: parseFloat(cols[7]) || 0,
+                    formaPagamento: cols[8] ? cols[8].replace(/"/g, '') : '',
+                    obs: cols[9] ? cols[9].replace(/"/g, '') : ''
+                });
+                imported++;
+            }
+        }
+
+        if (imported === 0) {
+            showToast('Nenhum dado novo encontrado no CSV. Verifique o formato do arquivo.', 'warning');
+            return;
+        }
+
+        saveGraficaVendas();
+        populateGraficaMonthFilter();
+        renderGraficaApp();
+        showToast(`Importado: ${imported} venda(s) da gráfica`, 'success');
+    } catch(err) {
+        console.error('Erro ao importar CSV Gráfica:', err);
+        showToast('Erro ao importar CSV: ' + err.message, 'error');
+    }
+}
+
 function chartOpts(symbol) {
     return {
         responsive: true,
@@ -1964,7 +2351,18 @@ async function startGraficaSession() {
 
     document.getElementById('exportGraficaCsvBtn').onclick = exportGraficaCsv;
 
+    document.getElementById('graficaImportCsvFile').onchange = (e) => {
+        if (e.target.files[0]) {
+            if (confirm('Importar dados do CSV? Dados duplicados serão ignorados.')) {
+                importGraficaCSV(e.target.files[0]);
+            }
+            e.target.value = '';
+        }
+    };
+
     renderGraficaApp();
+
+    subscribeRealtime();
 }
 
 function loadGraficaSettings() {
