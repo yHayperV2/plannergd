@@ -373,6 +373,24 @@ async function syncCloudLoad() {
             localStorage.setItem(userKey('uber_finance_personal_entries'), JSON.stringify(personalEntries));
             localStorage.setItem(userKey('uber_finance_settings'), JSON.stringify(uberSettings));
             
+        } else if (currentUser.accountType === 'roupas') {
+            const [estRes, compRes, vndRes, sRes] = await Promise.all([
+                supabaseClient.from('estoque_items').select('*'),
+                supabaseClient.from('compras_entries').select('*'),
+                supabaseClient.from('vendas_entries').select('*'),
+                supabaseClient.from('user_settings').select('settings_json').single()
+            ]);
+
+            if (estRes.data && estRes.data.length) estoqueItems = estRes.data.map(r => ({ id: r.id, nome: r.nome, categoria: r.categoria, tamanho: r.tamanho, qtd: r.qtd, custo: r.custo, precoVenda: r.preco_venda, dataEntrada: r.data_entrada }));
+            if (compRes.data && compRes.data.length) comprasEntries = compRes.data.map(r => ({ id: r.id, data: r.date, produto: r.produto, qtd: r.qtd, custo: r.custo, transporte: r.transporte, fornecedor: r.fornecedor }));
+            if (vndRes.data && vndRes.data.length) vendasEntries = vndRes.data.map(r => ({ id: r.id, data: r.date, stockItemId: r.stock_item_id, produto: r.produto, tamanho: r.tamanho, qtd: r.qtd, valor: r.valor, custoRef: r.custo_ref, lucro: r.lucro, obs: r.obs }));
+            if (sRes.data && sRes.data.settings_json) roupasSettings = { ...roupasSettings, ...sRes.data.settings_json };
+
+            localStorage.setItem(userKey('roupas_estoque'), JSON.stringify(estoqueItems));
+            localStorage.setItem(userKey('roupas_compras'), JSON.stringify(comprasEntries));
+            localStorage.setItem(userKey('roupas_vendas'), JSON.stringify(vendasEntries));
+            localStorage.setItem(userKey('roupas_finance_settings'), JSON.stringify(roupasSettings));
+
         } else if (currentUser.accountType === 'grafica') {
             const [prodsRes, vndsRes, despsOpRes, despsPessRes, sRes] = await Promise.all([
                 supabaseClient.from('grafica_produtos').select('*'),
