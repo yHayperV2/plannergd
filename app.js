@@ -310,8 +310,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =====================================================
-// AUTH
+// AUTH & SECURITY UTILS
 // =====================================================
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function setupAuthUI() {
     const loginTabBtn = document.getElementById('authTabLoginBtn');
     const regTabBtn = document.getElementById('authTabRegisterBtn');
@@ -530,44 +537,59 @@ async function deleteCloudItem(table, id) {
     }
 }
 
+let cloudSaveTimer = null;
+
 async function syncCloudSave() {
     if (!supabaseClient || !currentUser) return;
-    isSelfSync = true;
-    try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) return;
-        const uid = user.id;
+    
+    // Adiciona o debounce (atraso de otimização) para não fazer uploads simultâneos pesados
+    if (cloudSaveTimer) clearTimeout(cloudSaveTimer);
+    
+    // Atualiza o texto na interface para indicar que está salvando temporariamente
+    const uBtn = document.getElementById('uberSyncTime');
+    const rBtn = document.getElementById('roupasSyncTime');
+    const gBtn = document.getElementById('graficaSyncTime');
+    if (uBtn && lastSyncTimeStr !== 'Salvando...') uBtn.textContent = 'Salvando aguarde...';
+    if (rBtn && lastSyncTimeStr !== 'Salvando...') rBtn.textContent = 'Salvando aguarde...';
+    if (gBtn && lastSyncTimeStr !== 'Salvando...') gBtn.textContent = 'Salvando aguarde...';
 
-        const checkErr = (res, context) => {
-            if (res.error) throw new Error(`Erro em ${context}: ${res.error.message || JSON.stringify(res.error)}`);
-        };
+    cloudSaveTimer = setTimeout(async () => {
+        isSelfSync = true;
+        try {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) return;
+            const uid = user.id;
 
-        if (currentUser.accountType === 'uber') {
-            if (uberEntries.length) checkErr(await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, gross: e.gross, fuel: e.fuel, other: e.other, other_desc: e.otherDesc, km: e.km }))), 'Uber Entries');
-            if (personalEntries.length) checkErr(await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, category: e.category, value: e.value, status: e.status, description: e.desc }))), 'Personal Entries');
-            checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings }), 'Uber Settings');
-        } else if (currentUser.accountType === 'roupas') {
-            if (estoqueItems.length) checkErr(await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ id: e.id, user_id: uid, nome: e.nome, categoria: e.categoria, tamanho: e.tamanho, qtd: e.qtd, custo: e.custo, preco_venda: e.precoVenda, data_entrada: e.dataEntrada }))), 'Estoque');
-            if (comprasEntries.length) checkErr(await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, produto: e.produto, qtd: e.qtd, custo: e.custo, transporte: e.transporte, fornecedor: e.fornecedor }))), 'Compras');
-            if (vendasEntries.length) checkErr(await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs }))), 'Vendas');
-            checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings }), 'Roupas Settings');
-        } else if (currentUser.accountType === 'grafica') {
-            if (graficaProdutos.length) checkErr(await supabaseClient.from('grafica_produtos').upsert(graficaProdutos.map(e => ({ id: e.id, user_id: uid, tipo: e.tipo, nome: e.nome, categoria: e.categoria, medidas: e.medidas, tipo_papel: e.tipoPapel, acabamento: e.acabamento, custo_unitario: e.custoUnitario, margem_lucro: e.margemLucro, preco_venda: e.precoVenda, qtd_estoque: e.qtdEstoque, estoque_minimo: e.estoqueMinimo }))), 'Gráfica Produtos');
-            if (graficaVendas.length) checkErr(await supabaseClient.from('grafica_vendas').upsert(graficaVendas.map(e => ({ id: e.id, user_id: uid, date: e.data, cliente: e.cliente, tipo_item: e.tipoItem, produto_id: e.produtoId, detalhes: e.detalhes, largura_cm: e.larguraCm, altura_cm: e.alturaCm, m2_total: e.m2Total, qtd: e.qtd, custo_total: e.custoTotal, preco_total: e.precoTotal, lucro: e.lucro, forma_pagamento: e.formaPagamento, obs: e.obs }))), 'Gráfica Vendas');
-            if (graficaDespesasOp.length) checkErr(await supabaseClient.from('grafica_despesas_op').upsert(graficaDespesasOp.map(e => ({ id: e.id, user_id: uid, date: e.data, categoria: e.categoria, descricao: e.descricao, valor: e.valor, status: e.status }))), 'Gráfica Despesas Op');
-            if (graficaDespesasPessoais.length) checkErr(await supabaseClient.from('grafica_despesas_pessoais').upsert(graficaDespesasPessoais.map(e => ({ id: e.id, user_id: uid, vencimento: e.vencimento, pagamento: e.pagamento, categoria: e.categoria, valor: e.valor, status: e.status, descricao: e.descricao }))), 'Gráfica Despesas Pessoais');
-            checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: graficaSettings }), 'Gráfica Settings');
+            const checkErr = (res, context) => {
+                if (res.error) throw new Error(`Erro em ${context}: ${res.error.message || JSON.stringify(res.error)}`);
+            };
+
+            if (currentUser.accountType === 'uber') {
+                if (uberEntries.length) checkErr(await supabaseClient.from('uber_entries').upsert(uberEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, gross: e.gross, fuel: e.fuel, other: e.other, other_desc: e.otherDesc, km: e.km }))), 'Uber Entries');
+                if (personalEntries.length) checkErr(await supabaseClient.from('personal_entries').upsert(personalEntries.map(e => ({ id: e.id, user_id: uid, date: e.date, category: e.category, value: e.value, status: e.status, description: e.desc }))), 'Personal Entries');
+                checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: uberSettings }), 'Uber Settings');
+            } else if (currentUser.accountType === 'roupas') {
+                if (estoqueItems.length) checkErr(await supabaseClient.from('estoque_items').upsert(estoqueItems.map(e => ({ id: e.id, user_id: uid, nome: e.nome, categoria: e.categoria, tamanho: e.tamanho, qtd: e.qtd, custo: e.custo, preco_venda: e.precoVenda, data_entrada: e.dataEntrada }))), 'Estoque');
+                if (comprasEntries.length) checkErr(await supabaseClient.from('compras_entries').upsert(comprasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, produto: e.produto, qtd: e.qtd, custo: e.custo, transporte: e.transporte, fornecedor: e.fornecedor }))), 'Compras');
+                if (vendasEntries.length) checkErr(await supabaseClient.from('vendas_entries').upsert(vendasEntries.map(e => ({ id: e.id, user_id: uid, date: e.data, stock_item_id: e.stockItemId, produto: e.produto, tamanho: e.tamanho, qtd: e.qtd, valor: e.valor, custo_ref: e.custoRef, lucro: e.lucro, obs: e.obs }))), 'Vendas');
+                checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: roupasSettings }), 'Roupas Settings');
+            } else if (currentUser.accountType === 'grafica') {
+                if (graficaProdutos.length) checkErr(await supabaseClient.from('grafica_produtos').upsert(graficaProdutos.map(e => ({ id: e.id, user_id: uid, tipo: e.tipo, nome: e.nome, categoria: e.categoria, medidas: e.medidas, tipo_papel: e.tipoPapel, acabamento: e.acabamento, custo_unitario: e.custoUnitario, margem_lucro: e.margemLucro, preco_venda: e.precoVenda, qtd_estoque: e.qtdEstoque, estoque_minimo: e.estoqueMinimo }))), 'Gráfica Produtos');
+                if (graficaVendas.length) checkErr(await supabaseClient.from('grafica_vendas').upsert(graficaVendas.map(e => ({ id: e.id, user_id: uid, date: e.data, cliente: e.cliente, tipo_item: e.tipoItem, produto_id: e.produtoId, detalhes: e.detalhes, largura_cm: e.larguraCm, altura_cm: e.alturaCm, m2_total: e.m2Total, qtd: e.qtd, custo_total: e.custoTotal, preco_total: e.precoTotal, lucro: e.lucro, forma_pagamento: e.formaPagamento, obs: e.obs }))), 'Gráfica Vendas');
+                if (graficaDespesasOp.length) checkErr(await supabaseClient.from('grafica_despesas_op').upsert(graficaDespesasOp.map(e => ({ id: e.id, user_id: uid, date: e.data, categoria: e.categoria, descricao: e.descricao, valor: e.valor, status: e.status }))), 'Gráfica Despesas Op');
+                if (graficaDespesasPessoais.length) checkErr(await supabaseClient.from('grafica_despesas_pessoais').upsert(graficaDespesasPessoais.map(e => ({ id: e.id, user_id: uid, vencimento: e.vencimento, pagamento: e.pagamento, categoria: e.categoria, valor: e.valor, status: e.status, descricao: e.descricao }))), 'Gráfica Despesas Pessoais');
+                checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: graficaSettings }), 'Gráfica Settings');
+            }
+            
+            lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            updateSyncTimeUI();
+        } catch(err) {
+            console.warn('Falha ao salvar no banco de dados da hospedagem:', err);
+            alert('Erro ao sincronizar na nuvem:\n\n' + err.message);
+        } finally {
+            setTimeout(() => { isSelfSync = false; }, 2000);
         }
-        
-        lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        updateSyncTimeUI();
-    } catch(err) {
-        console.warn('Falha ao salvar no banco de dados da hospedagem:', err);
-        alert('Erro ao sincronizar na nuvem:\n\n' + err.message);
-    } finally {
-        setTimeout(() => { isSelfSync = false; }, 2000);
-    }
-}
+    }, 1500); // Aguarda 1.5s após a última modificação antes de iniciar o upload pesado pra nuvem
 }
 
 async function handleRegister(e) {
@@ -620,7 +642,8 @@ async function handleRegister(e) {
     }
 
     // Fallback local se Supabase não configurado
-    const user = { name, username, password, accountType: typeRadio.value };
+    const hashedPass = await hashPassword(password);
+    const user = { name, username, password: hashedPass, accountType: typeRadio.value };
     usersList.push(user);
     saveUsers();
     currentUser = { name, username, accountType: typeRadio.value };
@@ -635,9 +658,10 @@ async function handleLogin(e) {
 
     const username = document.getElementById('loginUsername').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
+    const hashedPass = await hashPassword(password);
 
     let loginSuccess = false;
-    let localFound = usersList.find(u => u.username === username && u.password === password);
+    let localFound = usersList.find(u => u.username === username && (u.password === password || u.password === hashedPass));
 
     if (supabaseClient) {
         try {
