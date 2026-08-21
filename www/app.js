@@ -758,6 +758,8 @@ function debounce(func, wait) {
     };
 }
 
+function bindAutoSave(formId, idInputId, handler, setEditingIdFn) { const form = document.getElementById(formId); if (!form) return; form.addEventListener('input', debounce((e) => { const idInput = document.getElementById(idInputId); if (!idInput.value) { const newId = generateId(); idInput.value = newId; if (setEditingIdFn) setEditingIdFn(newId); } handler(null, true); }, 800)); }
+
 function reRenderCurrentApp() {
     if (!currentUser) return;
     if (currentUser.accountType === 'uber') renderUberApp();
