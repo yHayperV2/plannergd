@@ -83,10 +83,7 @@ const SyncEngine = {
 
                 if (!isRetryable || attempt === maxAttempts) throw err;
 
-                const delayMs = Math.min(1000 * Math.pow(2, attempt), 30000);
-                console.warn(`[SyncEngine] ${context} — tentativa ${attempt}/${maxAttempts}. Retry em ${delayMs}ms. Erro: ${err.message}`);
-                await new Promise(r => setTimeout(r, delayMs));
-            }
+                }
         }
     },
 
@@ -181,6 +178,15 @@ const SyncEngine = {
 
             const since = this.lastSyncAt;
 
+            const applyFullSyncCleanup = (table, localArray, dbData) => {
+                if (since) return localArray;
+                if (!dbData) return localArray;
+                const dbIds = new Set(dbData.map(r => r.id));
+                const pendingIds = new Set(this.getQueue().filter(q => q.table === table).map(q => q.recordId));
+                return localArray.filter(e => dbIds.has(e.id) || pendingIds.has(e.id));
+            };
+
+
             if (currentUser.accountType === 'uber') {
                 const [uRes, pRes, sRes] = await Promise.all([
                     since
@@ -192,7 +198,8 @@ const SyncEngine = {
                     supabaseClient.from('user_settings').select('settings_json').single()
                 ]);
 
-                if (uRes.data?.length) {
+                if (uRes.data) {
+                    uberEntries = applyFullSyncCleanup('uber_entries', uberEntries, uRes.data);
                     uRes.data.forEach(r => {
                         const mapped = { id: r.id, date: r.date, gross: r.gross, fuel: r.fuel, other: r.other, otherDesc: r.other_desc, km: r.km };
                         const idx = uberEntries.findIndex(e => e.id === r.id);
@@ -200,7 +207,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('uber_finance_entries'), JSON.stringify(uberEntries));
                 }
-                if (pRes.data?.length) {
+                if (pRes.data) {
+                    personalEntries = applyFullSyncCleanup('personal_entries', personalEntries, pRes.data);
                     pRes.data.forEach(r => {
                         const mapped = { id: r.id, date: r.date, category: r.category, value: r.value, status: r.status, desc: r.description };
                         const idx = personalEntries.findIndex(e => e.id === r.id);
@@ -221,7 +229,8 @@ const SyncEngine = {
                     supabaseClient.from('user_settings').select('settings_json').single()
                 ]);
 
-                if (estRes.data?.length) {
+                if (estRes.data) {
+                    estoqueItems = applyFullSyncCleanup('estoque_items', estoqueItems, estRes.data);
                     estRes.data.forEach(r => {
                         const mapped = { id: r.id, nome: r.nome, categoria: r.categoria, tamanho: r.tamanho, qtd: r.qtd, custo: r.custo, precoVenda: r.preco_venda, dataEntrada: r.data_entrada };
                         const idx = estoqueItems.findIndex(e => e.id === r.id);
@@ -229,7 +238,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('roupas_estoque'), JSON.stringify(estoqueItems));
                 }
-                if (compRes.data?.length) {
+                if (compRes.data) {
+                    comprasEntries = applyFullSyncCleanup('compras_entries', comprasEntries, compRes.data);
                     compRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, produto: r.produto, qtd: r.qtd, custo: r.custo, transporte: r.transporte, fornecedor: r.fornecedor };
                         const idx = comprasEntries.findIndex(e => e.id === r.id);
@@ -237,7 +247,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('roupas_compras'), JSON.stringify(comprasEntries));
                 }
-                if (vndRes.data?.length) {
+                if (vndRes.data) {
+                    vendasEntries = applyFullSyncCleanup('vendas_entries', vendasEntries, vndRes.data);
                     vndRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, stockItemId: r.stock_item_id, produto: r.produto, tamanho: r.tamanho, qtd: r.qtd, valor: r.valor, custoRef: r.custo_ref, lucro: r.lucro, obs: r.obs };
                         const idx = vendasEntries.findIndex(e => e.id === r.id);
@@ -259,7 +270,8 @@ const SyncEngine = {
                     supabaseClient.from('user_settings').select('settings_json').single()
                 ]);
 
-                if (prodsRes.data?.length) {
+                if (prodsRes.data) {
+                    graficaProdutos = applyFullSyncCleanup('grafica_produtos', graficaProdutos, prodsRes.data);
                     prodsRes.data.forEach(r => {
                         const mapped = { id: r.id, tipo: r.tipo, nome: r.nome, categoria: r.categoria, medidas: r.medidas, tipoPapel: r.tipo_papel, acabamento: r.acabamento, custoUnitario: r.custo_unitario, margemLucro: r.margem_lucro, precoVenda: r.preco_venda, qtdEstoque: r.qtd_estoque, estoqueMinimo: r.estoque_minimo };
                         const idx = graficaProdutos.findIndex(e => e.id === r.id);
@@ -267,7 +279,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('grafica_produtos'), JSON.stringify(graficaProdutos));
                 }
-                if (vndsRes.data?.length) {
+                if (vndsRes.data) {
+                    graficaVendas = applyFullSyncCleanup('grafica_vendas', graficaVendas, vndsRes.data);
                     vndsRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, cliente: r.cliente, tipoItem: r.tipo_item, produtoId: r.produto_id, detalhes: r.detalhes, larguraCm: r.largura_cm, alturaCm: r.altura_cm, m2Total: r.m2_total, qtd: r.qtd, custoTotal: r.custo_total, precoTotal: r.preco_total, lucro: r.lucro, formaPagamento: r.forma_pagamento, obs: r.obs };
                         const idx = graficaVendas.findIndex(e => e.id === r.id);
@@ -275,7 +288,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('grafica_vendas'), JSON.stringify(graficaVendas));
                 }
-                if (despsOpRes.data?.length) {
+                if (despsOpRes.data) {
+                    graficaDespesasOp = applyFullSyncCleanup('grafica_despesas_op', graficaDespesasOp, despsOpRes.data);
                     despsOpRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, categoria: r.categoria, descricao: r.descricao, valor: r.valor, status: r.status };
                         const idx = graficaDespesasOp.findIndex(e => e.id === r.id);
@@ -283,7 +297,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('grafica_despesas_op'), JSON.stringify(graficaDespesasOp));
                 }
-                if (despsPessRes.data?.length) {
+                if (despsPessRes.data) {
+                    graficaDespesasPessoais = applyFullSyncCleanup('grafica_despesas_pessoais', graficaDespesasPessoais, despsPessRes.data);
                     despsPessRes.data.forEach(r => {
                         const mapped = { id: r.id, vencimento: r.vencimento, pagamento: r.pagamento, categoria: r.categoria, valor: r.valor, status: r.status, descricao: r.descricao };
                         const idx = graficaDespesasPessoais.findIndex(e => e.id === r.id);
@@ -304,7 +319,8 @@ const SyncEngine = {
                     supabaseClient.from('user_settings').select('settings_json').single()
                 ]);
 
-                if (rRes.data?.length) {
+                if (rRes.data) {
+                    casaRecebimentos = applyFullSyncCleanup('casa_recebimentos', casaRecebimentos, rRes.data);
                     rRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, valor: r.valor, descricao: r.descricao, fonte: r.fonte };
                         const idx = casaRecebimentos.findIndex(e => e.id === r.id);
@@ -312,7 +328,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('casa_recebimentos'), JSON.stringify(casaRecebimentos));
                 }
-                if (dRes.data?.length) {
+                if (dRes.data) {
+                    casaDespesas = applyFullSyncCleanup('casa_despesas', casaDespesas, dRes.data);
                     dRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, valor: r.valor, categoria: r.categoria, descricao: r.descricao, status: r.status };
                         const idx = casaDespesas.findIndex(e => e.id === r.id);
@@ -320,7 +337,8 @@ const SyncEngine = {
                     });
                     localStorage.setItem(userKey('casa_despesas'), JSON.stringify(casaDespesas));
                 }
-                if (sRes.data?.length) {
+                if (sRes.data) {
+                    casaReservas = applyFullSyncCleanup('casa_reservas', casaReservas, sRes.data);
                     sRes.data.forEach(r => {
                         const mapped = { id: r.id, data: r.date, valor: r.valor, tipo: r.tipo, observacao: r.observacao };
                         const idx = casaReservas.findIndex(e => e.id === r.id);
@@ -950,32 +968,26 @@ function unsubscribeRealtime() {
     }
 }
 
-let realtimeRenderTimer = null;
 function handleRealtimeChange(payload) {
     const { eventType, table, new: newRec, old: oldRec } = payload;
     SyncEngine.applyRealtimeEvent(eventType, table, newRec, oldRec);
 
-    if (realtimeRenderTimer) clearTimeout(realtimeRenderTimer);
-    realtimeRenderTimer = setTimeout(() => {
-        realtimeRenderTimer = null;
-        lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        updateSyncTimeUI();
+    lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    updateSyncTimeUI();
 
-        if (currentUser.accountType === 'uber') {
-            populateUberMonthFilter();
-            renderUberApp();
-        } else if (currentUser.accountType === 'roupas') {
-            populateRoupasMonthFilter();
-            renderRoupasApp();
-        } else if (currentUser.accountType === 'grafica') {
-            populateGraficaMonthFilter();
-            renderGraficaApp();
-        } else if (currentUser.accountType === 'casa') {
-            populateCasaMonthFilter();
-            renderCasaApp();
-        }
-        showToast('Dados atualizados de outro dispositivo', 'info');
-    }, 80);
+    if (currentUser.accountType === 'uber') {
+        populateUberMonthFilter();
+        renderUberApp();
+    } else if (currentUser.accountType === 'roupas') {
+        populateRoupasMonthFilter();
+        renderRoupasApp();
+    } else if (currentUser.accountType === 'grafica') {
+        populateGraficaMonthFilter();
+        renderGraficaApp();
+    } else if (currentUser.accountType === 'casa') {
+        populateCasaMonthFilter();
+        renderCasaApp();
+    }
 }
 
 let lastSyncTimeStr = 'Salvo';
@@ -2165,6 +2177,7 @@ function handleEstoqueSubmit(e, isAuto = false) {
     } else {
         estoqueItems.push(item);
     }
+      if (typeof SyncEngine !== "undefined") SyncEngine.pushUpsert("estoque_items", { id: item.id, user_id: currentUser?.supabaseUserId, nome: item.nome, categoria: item.categoria, tamanho: item.tamanho, qtd: item.qtd, custo: item.custo, preco_venda: item.precoVenda, data_entrada: item.dataEntrada });
     saveEstoque();
     document.getElementById('estoqueFormWrapper').classList.add('hidden');
     if (!isAuto) resetEstoqueForm();
@@ -2224,6 +2237,7 @@ function handleCompraSubmit(e, isAuto = false) {
     } else {
         comprasEntries.push(entry);
     }
+      if (typeof SyncEngine !== "undefined") SyncEngine.pushUpsert("compras_entries", { id: entry.id, user_id: currentUser?.supabaseUserId, date: entry.data, produto: entry.produto, qtd: entry.qtd, custo: entry.custo, transporte: entry.transporte, fornecedor: entry.fornecedor });
     saveCompras();
     document.getElementById('roupasMonthFilter').value = monthKey(data);
     populateRoupasMonthFilter();
@@ -3316,6 +3330,7 @@ function handleCasaRecebSubmit(e, isAuto = false) {
     } else {
         casaRecebimentos.push(entry);
     }
+      if (typeof SyncEngine !== "undefined") SyncEngine.pushUpsert("casa_recebimentos", { id: entry.id, user_id: currentUser?.supabaseUserId, date: entry.data, valor: entry.valor, descricao: entry.descricao, fonte: entry.fonte });
     saveCasaReceb();
     editingCasaRecebId = null;
     document.getElementById('casaRecebForm').reset();
@@ -3341,6 +3356,7 @@ function handleCasaDespSubmit(e, isAuto = false) {
     } else {
         casaDespesas.push(entry);
     }
+      if (typeof SyncEngine !== "undefined") SyncEngine.pushUpsert("casa_despesas", { id: entry.id, user_id: currentUser?.supabaseUserId, date: entry.data, valor: entry.valor, categoria: entry.categoria, descricao: entry.descricao, status: entry.status });
     saveCasaDesp();
     editingCasaDespId = null;
     document.getElementById('casaDespForm').reset();
@@ -3365,6 +3381,7 @@ function handleCasaResSubmit(e, isAuto = false) {
     } else {
         casaReservas.push(entry);
     }
+      if (typeof SyncEngine !== "undefined") SyncEngine.pushUpsert("casa_reservas", { id: entry.id, user_id: currentUser?.supabaseUserId, date: entry.data, valor: entry.valor, tipo: entry.tipo, observacao: entry.observacao });
     saveCasaRes();
     editingCasaResId = null;
     document.getElementById('casaResForm').reset();
@@ -5018,3 +5035,21 @@ window.addEventListener('offline', () => {
     console.log('[Network] Conexão perdida.');
     showToast('Você está offline. Alterações serão salvas localmente.', 'warning');
 });
+// =====================================================
+// ONLINE ONLY MODE ENFORCEMENT
+// =====================================================
+function checkOnlineStatus() {
+    const overlay = document.getElementById('offlineOverlay');
+    if (!overlay) return;
+    if (navigator.onLine) {
+        overlay.classList.add('hidden');
+        if (typeof SyncEngine !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) {
+            SyncEngine.processQueue();
+        }
+    } else {
+        overlay.classList.remove('hidden');
+    }
+}
+window.addEventListener('online', checkOnlineStatus);
+window.addEventListener('offline', checkOnlineStatus);
+document.addEventListener('DOMContentLoaded', checkOnlineStatus);
