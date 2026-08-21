@@ -1,0 +1,11 @@
+# Dependencias do NodeJS
+node_modules/
+
+# Arquivos de Build / Compiladores
+dist/
+android/
+
+# Sistema e Logs
+.DS_Store
+*.log
+Thumbs.db

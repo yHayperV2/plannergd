@@ -1,0 +1,32 @@
+{
+  "name": "controle-financeiro",
+  "version": "2.1.0",
+  "description": "Sistema Completo de Controle Financeiro (Uber, Roupas, Grafica, Casa) com Sincronizacao em Tempo Real",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "author": "Controle Financeiro",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.seucontrole.financeiro",
+    "productName": "Controle Financeiro",
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  }
+}
