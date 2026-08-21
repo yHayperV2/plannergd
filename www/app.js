@@ -4022,7 +4022,7 @@ window.finalizeSale = function() {
         const lucroFinal = precoComDesconto - item.custoTotal;
         
         const venda = {
-            id: generateId()*1000), 
+            id: generateId(), 
             data: dataVenda,
             cliente,
             telefone,
