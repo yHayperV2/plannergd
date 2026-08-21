@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-cache-v4';
+const CACHE_NAME = 'financas-cache-v5';
 const urlsToCache = [
   './index.html',
   './style.css',
@@ -24,17 +24,23 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Ignora requisições que não sejam GET
   if (event.request.method !== 'GET') return;
+
+  // NUNCA faz cache de requisições para a API do Supabase
+  const url = new URL(event.request.url);
+  if (url.hostname.includes('supabase.co')) {
+    return; // Deixa o navegador lidar com a requisição normalmente (sem cache do SW)
+  }
+
+  // Estratégia Network First para o resto (arquivos locais HTML, JS, CSS)
   event.respondWith(
-    caches.match(event.request)
-      .then(cached => {
-        return fetch(event.request)
-          .then(response => {
-            const respClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
-            return response;
-          })
-          .catch(() => cached);
+    fetch(event.request)
+      .then(response => {
+        const respClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
+        return response;
       })
-    );
+      .catch(() => caches.match(event.request))
+  );
 });
