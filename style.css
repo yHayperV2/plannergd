@@ -238,6 +238,7 @@ body {
 .roupas-brand { background: linear-gradient(135deg, #ec4899, #db2777); box-shadow: 0 4px 14px rgba(236,72,153,.35); }
 .grafica-brand { background: linear-gradient(135deg, #8b5cf6, #06b6d4); box-shadow: 0 4px 14px rgba(139,92,246,.35); }
 .grafica-icon { background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: #fff; }
+.casa-icon { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
 
 .header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 

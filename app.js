@@ -73,6 +73,21 @@ let graficaSettings = {
     emailjsPublicKey: ''
 };
 
+// Controle de Casa state
+let casaRecebimentos = [];
+let casaDespesas = [];
+let casaReservas = []; // Dinheiro guardado (cofrinho)
+let editingCasaRecebId = null;
+let editingCasaDespId = null;
+let editingCasaResId = null;
+let casaSettings = {
+    backupEmail: '',
+    emailjsServiceId: '',
+    emailjsTemplateId: '',
+    emailjsPublicKey: ''
+};
+const CASA_CATEGORIAS = ['Aluguel', 'Luz', 'Água', 'Remédio', 'Escola', 'Mercado', 'Saídas', 'Outros'];
+
 // Charts
 let charts = {};
 
@@ -160,6 +175,9 @@ function generateBackupObject() {
     } else if (acc === 'grafica') {
         dataObj = { graficaProdutos, graficaVendas, graficaDespesasOp, graficaDespesasPessoais };
         setObj = graficaSettings;
+    } else if (acc === 'casa') {
+        dataObj = { casaRecebimentos, casaDespesas, casaReservas };
+        setObj = casaSettings;
     }
 
     return {
@@ -206,7 +224,9 @@ function saveInternalBackup(backupObj) {
             ? `${uberEntries.length} lançamentos Uber | ${personalEntries.length} despesas Casa`
             : backupObj.accountType === 'roupas'
             ? `${estoqueItems.length} produtos | ${vendasEntries.length} vendas`
-            : `${graficaProdutos.length} opções | ${graficaVendas.length} vendas`,
+            : backupObj.accountType === 'grafica'
+            ? `${graficaProdutos.length} opções | ${graficaVendas.length} vendas`
+            : `${casaRecebimentos.length} rec. | ${casaDespesas.length} desp. | ${casaReservas.length} res.`,
         data: backupObj
     });
 
@@ -228,7 +248,10 @@ function checkAndRunDailyBackup() {
         localStorage.setItem(lastKey, today);
 
         // Se o usuário configurou o EmailJS, envia o backup por e-mail automaticamente
-        const st = currentUser.accountType === 'uber' ? uberSettings : roupasSettings;
+        let st = uberSettings;
+        if (currentUser.accountType === 'roupas') st = roupasSettings;
+        else if (currentUser.accountType === 'grafica') st = graficaSettings;
+        else if (currentUser.accountType === 'casa') st = casaSettings;
         if (st.backupEmail && st.emailjsServiceId && st.emailjsTemplateId && st.emailjsPublicKey) {
             sendEmailBackup(false);
         }
@@ -237,8 +260,11 @@ function checkAndRunDailyBackup() {
 
 async function sendEmailBackup(manualTest = false) {
     if (!currentUser) return;
-    const isUber = currentUser.accountType === 'uber';
-    const st = isUber ? uberSettings : roupasSettings;
+    const acc = currentUser.accountType;
+    let st = uberSettings;
+    if (acc === 'roupas') st = roupasSettings;
+    if (acc === 'grafica') st = graficaSettings;
+    if (acc === 'casa') st = casaSettings;
 
     if (!st.backupEmail || !st.emailjsServiceId || !st.emailjsTemplateId || !st.emailjsPublicKey) {
         if (manualTest) {
@@ -256,17 +282,26 @@ async function sendEmailBackup(manualTest = false) {
         emailjs.init(st.emailjsPublicKey);
 
         let summaryText = '';
-        if (isUber) {
+        let accName = 'App';
+        if (acc === 'uber') {
             summaryText = `Lançamentos Uber: ${uberEntries.length} | Despesas Casa: ${personalEntries.length}`;
-        } else {
+            accName = 'Motorista Uber';
+        } else if (acc === 'roupas') {
             summaryText = `Itens Estoque: ${estoqueItems.length} | Compras: ${comprasEntries.length} | Vendas: ${vendasEntries.length}`;
+            accName = 'Vendedor de Roupas';
+        } else if (acc === 'grafica') {
+            summaryText = `Itens Estoque: ${graficaProdutos.length} | Vendas: ${graficaVendas.length}`;
+            accName = 'Gráfica Rápida';
+        } else if (acc === 'casa') {
+            summaryText = `Recebimentos: ${casaRecebimentos.length} | Despesas: ${casaDespesas.length} | Reservas: ${casaReservas.length}`;
+            accName = 'Controle de Casa';
         }
 
         const templateParams = {
             to_email: st.backupEmail,
             from_name: currentUser.name,
             backup_date: dateBR(todayISO()),
-            account_type: isUber ? 'Motorista Uber' : 'Vendedor de Roupas',
+            account_type: accName,
             summary: summaryText,
             backup_json: JSON.stringify(generateBackupObject())
         };
@@ -434,6 +469,23 @@ async function syncCloudLoad() {
             localStorage.setItem(userKey('grafica_despesas_op'), JSON.stringify(graficaDespesasOp));
             localStorage.setItem(userKey('grafica_despesas_pessoais'), JSON.stringify(graficaDespesasPessoais));
             localStorage.setItem(userKey('grafica_settings'), JSON.stringify(graficaSettings));
+        } else if (currentUser.accountType === 'casa') {
+            const [rRes, dRes, sRes, stRes] = await Promise.all([
+                supabaseClient.from('casa_recebimentos').select('*'),
+                supabaseClient.from('casa_despesas').select('*'),
+                supabaseClient.from('casa_reservas').select('*'),
+                supabaseClient.from('user_settings').select('settings_json').single()
+            ]);
+
+            if (rRes.data && rRes.data.length) casaRecebimentos = rRes.data.map(r => ({ id: r.id, data: r.date, valor: r.valor, descricao: r.descricao, fonte: r.fonte }));
+            if (dRes.data && dRes.data.length) casaDespesas = dRes.data.map(r => ({ id: r.id, data: r.date, valor: r.valor, categoria: r.categoria, descricao: r.descricao, status: r.status }));
+            if (sRes.data && sRes.data.length) casaReservas = sRes.data.map(r => ({ id: r.id, data: r.date, valor: r.valor, tipo: r.tipo, observacao: r.observacao }));
+            if (stRes.data && stRes.data.settings_json) casaSettings = { ...casaSettings, ...stRes.data.settings_json };
+
+            localStorage.setItem(userKey('casa_recebimentos'), JSON.stringify(casaRecebimentos));
+            localStorage.setItem(userKey('casa_despesas'), JSON.stringify(casaDespesas));
+            localStorage.setItem(userKey('casa_reservas'), JSON.stringify(casaReservas));
+            localStorage.setItem(userKey('casa_settings'), JSON.stringify(casaSettings));
         }
     } catch(err) {
         console.warn('Erro ao ler do Supabase, rodando em modo local:', err);
@@ -448,6 +500,7 @@ function getRealtimeTables() {
     if (currentUser.accountType === 'uber') return ['uber_entries', 'personal_entries', 'user_settings'];
     if (currentUser.accountType === 'roupas') return ['estoque_items', 'compras_entries', 'vendas_entries', 'user_settings'];
     if (currentUser.accountType === 'grafica') return ['grafica_produtos', 'grafica_vendas', 'grafica_despesas_op', 'grafica_despesas_pessoais', 'user_settings'];
+    if (currentUser.accountType === 'casa') return ['casa_recebimentos', 'casa_despesas', 'casa_reservas', 'user_settings'];
     return [];
 }
 
@@ -503,6 +556,9 @@ function handleRealtimeChange(payload) {
         } else if (currentUser.accountType === 'grafica') {
             populateGraficaMonthFilter();
             renderGraficaApp();
+        } else if (currentUser.accountType === 'casa') {
+            populateCasaMonthFilter();
+            renderCasaApp();
         }
         showToast('Dados atualizados de outro dispositivo', 'info');
     }, 50);
@@ -513,9 +569,11 @@ function updateSyncTimeUI() {
     const uBtn = document.getElementById('uberSyncTime');
     const rBtn = document.getElementById('roupasSyncTime');
     const gBtn = document.getElementById('graficaSyncTime');
+    const cBtn = document.getElementById('casaSyncTime');
     if (uBtn) uBtn.textContent = lastSyncTimeStr;
     if (rBtn) rBtn.textContent = lastSyncTimeStr;
     if (gBtn) gBtn.textContent = lastSyncTimeStr;
+    if (cBtn) cBtn.textContent = lastSyncTimeStr;
 }
 
 window.manualCloudSync = async function(btnId, timeId) {
@@ -579,6 +637,11 @@ async function syncCloudSave() {
                 if (graficaDespesasOp.length) checkErr(await supabaseClient.from('grafica_despesas_op').upsert(graficaDespesasOp.map(e => ({ id: e.id, user_id: uid, date: e.data, categoria: e.categoria, descricao: e.descricao, valor: e.valor, status: e.status }))), 'Gráfica Despesas Op');
                 if (graficaDespesasPessoais.length) checkErr(await supabaseClient.from('grafica_despesas_pessoais').upsert(graficaDespesasPessoais.map(e => ({ id: e.id, user_id: uid, vencimento: e.vencimento, pagamento: e.pagamento, categoria: e.categoria, valor: e.valor, status: e.status, descricao: e.descricao }))), 'Gráfica Despesas Pessoais');
                 checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: graficaSettings }), 'Gráfica Settings');
+            } else if (currentUser.accountType === 'casa') {
+                if (casaRecebimentos.length) checkErr(await supabaseClient.from('casa_recebimentos').upsert(casaRecebimentos.map(e => ({ id: e.id, user_id: uid, date: e.data, valor: e.valor, descricao: e.descricao, fonte: e.fonte }))), 'Casa Recebimentos');
+                if (casaDespesas.length) checkErr(await supabaseClient.from('casa_despesas').upsert(casaDespesas.map(e => ({ id: e.id, user_id: uid, date: e.data, valor: e.valor, categoria: e.categoria, descricao: e.descricao, status: e.status }))), 'Casa Despesas');
+                if (casaReservas.length) checkErr(await supabaseClient.from('casa_reservas').upsert(casaReservas.map(e => ({ id: e.id, user_id: uid, date: e.data, valor: e.valor, tipo: e.tipo, observacao: e.observacao }))), 'Casa Reservas');
+                checkErr(await supabaseClient.from('user_settings').upsert({ user_id: uid, settings_json: casaSettings }), 'Casa Settings');
             }
             
             lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -746,6 +809,7 @@ function showAuth() {
     document.getElementById('uberApp').classList.add('hidden');
     document.getElementById('roupasApp').classList.add('hidden');
     document.getElementById('graficaApp').classList.add('hidden');
+    document.getElementById('casaApp').classList.add('hidden');
 }
 
 function hideAuth() {
@@ -772,6 +836,8 @@ function startSession() {
             startRoupasSession();
         } else if (currentUser.accountType === 'grafica') {
             startGraficaSession();
+        } else if (currentUser.accountType === 'casa') {
+            startCasaSession();
         } else {
             localStorage.removeItem('uber_finance_logged_user');
             currentUser = null;
@@ -2149,6 +2215,17 @@ async function restoreJSONBackup(file) {
             localStorage.setItem(userKey('grafica_settings'), JSON.stringify(graficaSettings));
             populateGraficaMonthFilter();
             renderGraficaApp();
+        } else if (obj.accountType === 'casa') {
+            if (obj.data.casaRecebimentos) casaRecebimentos = obj.data.casaRecebimentos;
+            if (obj.data.casaDespesas) casaDespesas = obj.data.casaDespesas;
+            if (obj.data.casaReservas) casaReservas = obj.data.casaReservas;
+            if (obj.settings) casaSettings = obj.settings;
+            localStorage.setItem(userKey('casa_recebimentos'), JSON.stringify(casaRecebimentos));
+            localStorage.setItem(userKey('casa_despesas'), JSON.stringify(casaDespesas));
+            localStorage.setItem(userKey('casa_reservas'), JSON.stringify(casaReservas));
+            localStorage.setItem(userKey('casa_settings'), JSON.stringify(casaSettings));
+            populateCasaMonthFilter();
+            renderCasaApp();
         }
 
         // Tenta sincronizar a nuvem após restauração local
@@ -2162,6 +2239,7 @@ async function restoreJSONBackup(file) {
         document.getElementById('settingsModal')?.classList.add('hidden');
         document.getElementById('roupasSettingsModal')?.classList.add('hidden');
         document.getElementById('graficaSettingsModal')?.classList.add('hidden');
+        document.getElementById('casaSettingsModal')?.classList.add('hidden');
         
     } catch(err) {
         console.error('Erro na restauração:', err);
@@ -2666,6 +2744,481 @@ function loadGraficaDespesasPessoais() {
 function saveGraficaDespesasPessoais() {
     localStorage.setItem(userKey('grafica_despesas_pessoais'), JSON.stringify(graficaDespesasPessoais));
     syncCloudSave();
+}
+
+// =====================================================
+// CONTROLE DE CASA MODULE
+// =====================================================
+function loadCasaSettings() {
+    const d = localStorage.getItem(userKey('casa_settings'));
+    casaSettings = d ? JSON.parse(d) : { backupEmail: '', emailjsServiceId: '', emailjsTemplateId: '', emailjsPublicKey: '' };
+}
+function saveCasaSettings() {
+    localStorage.setItem(userKey('casa_settings'), JSON.stringify(casaSettings));
+    syncCloudSave();
+}
+
+function loadCasaReceb() {
+    const d = localStorage.getItem(userKey('casa_recebimentos'));
+    casaRecebimentos = d ? JSON.parse(d) : [];
+}
+function saveCasaReceb() {
+    localStorage.setItem(userKey('casa_recebimentos'), JSON.stringify(casaRecebimentos));
+    syncCloudSave();
+}
+
+function loadCasaDesp() {
+    const d = localStorage.getItem(userKey('casa_despesas'));
+    casaDespesas = d ? JSON.parse(d) : [];
+}
+function saveCasaDesp() {
+    localStorage.setItem(userKey('casa_despesas'), JSON.stringify(casaDespesas));
+    syncCloudSave();
+}
+
+function loadCasaRes() {
+    const d = localStorage.getItem(userKey('casa_reservas'));
+    casaReservas = d ? JSON.parse(d) : [];
+}
+function saveCasaRes() {
+    localStorage.setItem(userKey('casa_reservas'), JSON.stringify(casaReservas));
+    syncCloudSave();
+}
+
+async function startCasaSession() {
+    document.getElementById('casaApp').classList.remove('hidden');
+    document.getElementById('casaHeaderUserName').textContent = currentUser.name;
+
+    document.getElementById('casaLogoutBtn').onclick = handleLogout;
+    document.getElementById('casaSyncBtn').onclick = () => window.manualCloudSync('casaSyncBtn', 'casaSyncTime');
+
+    loadCasaSettings();
+    loadCasaReceb();
+    loadCasaDesp();
+    loadCasaRes();
+    await syncCloudLoad();
+
+    document.getElementById('casaRecebData').value = todayISO();
+    document.getElementById('casaDespData').value = todayISO();
+    document.getElementById('casaResData').value = todayISO();
+
+    populateCasaMonthFilter();
+    setupCasaMonthFilter();
+    setupCasaTabs();
+    setupCasaListeners();
+    setupCasaSettingsModal();
+    renderCasaApp();
+
+    checkAndRunDailyBackup();
+    subscribeRealtime();
+}
+
+function populateCasaMonthFilter() {
+    const select = document.getElementById('casaMonthFilter');
+    if (!select) return;
+    const prev = select.value;
+    const months = new Set([new Date().toISOString().substring(0, 7)]);
+    casaRecebimentos.forEach(e => months.add(monthKey(e.data)));
+    casaDespesas.forEach(e => months.add(monthKey(e.data)));
+    const sorted = Array.from(months).sort().reverse();
+    select.innerHTML = sorted.map(m => {
+        const [y, mm] = m.split('-');
+        const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        return `<option value="${m}">${names[parseInt(mm,10)-1]} / ${y}</option>`;
+    }).join('');
+    if (prev && sorted.includes(prev)) select.value = prev;
+}
+
+function setupCasaMonthFilter() {
+    const el = document.getElementById('casaMonthFilter');
+    if (el) el.onchange = renderCasaApp;
+}
+
+function setupCasaTabs() {
+    document.querySelectorAll('#casaTabsNav .tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#casaTabsNav .tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#casaApp .ctab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.ctab).classList.add('active');
+            renderCasaApp();
+        };
+    });
+}
+
+function setupCasaListeners() {
+    document.getElementById('casaRecebForm').onsubmit = handleCasaRecebSubmit;
+    document.getElementById('casaDespForm').onsubmit = handleCasaDespSubmit;
+    document.getElementById('casaResForm').onsubmit = handleCasaResSubmit;
+
+    const cb = document.getElementById('casaDespCategoria');
+    if (cb) {
+        cb.innerHTML = CASA_CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    // Export simples
+    const exp = document.getElementById('casaExportCsvBtn');
+    if (exp) exp.onclick = exportCasaCSV;
+}
+
+function setupCasaSettingsModal() {
+    const open = document.getElementById('openCasaSettingsBtn');
+    if (!open) return;
+    open.onclick = () => {
+        document.getElementById('casaBackupEmail').value = casaSettings.backupEmail || '';
+        document.getElementById('casaEmailjsServiceId').value = casaSettings.emailjsServiceId || '';
+        document.getElementById('casaEmailjsTemplateId').value = casaSettings.emailjsTemplateId || '';
+        document.getElementById('casaEmailjsPublicKey').value = casaSettings.emailjsPublicKey || '';
+        document.getElementById('casaSettingsModal').classList.remove('hidden');
+    };
+    const close = () => document.getElementById('casaSettingsModal').classList.add('hidden');
+    document.getElementById('closeCasaSettingsBtn').onclick = close;
+    document.getElementById('cancelCasaSettingsBtn').onclick = close;
+    document.getElementById('casaSettingsForm').onsubmit = (e) => {
+        e.preventDefault();
+        casaSettings.backupEmail = document.getElementById('casaBackupEmail').value.trim();
+        casaSettings.emailjsServiceId = document.getElementById('casaEmailjsServiceId').value.trim();
+        casaSettings.emailjsTemplateId = document.getElementById('casaEmailjsTemplateId').value.trim();
+        casaSettings.emailjsPublicKey = document.getElementById('casaEmailjsPublicKey').value.trim();
+        saveCasaSettings();
+        close();
+        showToast('Configurações salvas!', 'success');
+    };
+
+    const mb = document.getElementById('casaManualBackupBtn');
+    if (mb) mb.onclick = () => { downloadJSONBackup(); showToast('Backup JSON baixado!', 'success'); };
+    const te = document.getElementById('casaTestEmailBtn');
+    if (te) te.onclick = () => sendEmailBackup(true);
+    const imp = document.getElementById('casaImportJsonFile');
+    if (imp) {
+        imp.onchange = (e) => {
+            if (e.target.files[0]) restoreJSONBackup(e.target.files[0]);
+            e.target.value = '';
+        };
+    }
+    const impCsv = document.getElementById('casaImportCsvFile');
+    if (impCsv) {
+        impCsv.onchange = (e) => {
+            if (e.target.files[0]) {
+                if (confirm('Importar dados do CSV? Duplicados serão ignorados.')) {
+                    importCasaCSV(e.target.files[0]);
+                }
+            }
+            e.target.value = '';
+        };
+    }
+}
+
+function handleCasaRecebSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('casaRecebId').value || Date.now().toString();
+    const data = document.getElementById('casaRecebData').value;
+    if (!data) return alert('Informe a data.');
+    const valor = parseFloat(document.getElementById('casaRecebValor').value) || 0;
+    const desc = document.getElementById('casaRecebDesc').value.trim();
+    const fonte = document.getElementById('casaRecebFonte').value.trim() || 'Salário';
+    const entry = { id, data, valor, descricao: desc, fonte };
+    if (editingCasaRecebId) {
+        const i = casaRecebimentos.findIndex(x => x.id === editingCasaRecebId);
+        if (i !== -1) casaRecebimentos[i] = entry;
+    } else {
+        casaRecebimentos.push(entry);
+    }
+    saveCasaReceb();
+    editingCasaRecebId = null;
+    document.getElementById('casaRecebForm').reset();
+    document.getElementById('casaRecebData').value = todayISO();
+    document.getElementById('casaSaveRecebBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+    renderCasaApp();
+    showToast('Recebimento salvo!', 'success');
+}
+
+function handleCasaDespSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('casaDespId').value || Date.now().toString();
+    const data = document.getElementById('casaDespData').value;
+    if (!data) return alert('Informe a data.');
+    const valor = parseFloat(document.getElementById('casaDespValor').value) || 0;
+    const categoria = document.getElementById('casaDespCategoria').value;
+    const desc = document.getElementById('casaDespDesc').value.trim();
+    const status = document.getElementById('casaDespStatus').value;
+    const entry = { id, data, valor, categoria, descricao: desc, status };
+    if (editingCasaDespId) {
+        const i = casaDespesas.findIndex(x => x.id === editingCasaDespId);
+        if (i !== -1) casaDespesas[i] = entry;
+    } else {
+        casaDespesas.push(entry);
+    }
+    saveCasaDesp();
+    editingCasaDespId = null;
+    document.getElementById('casaDespForm').reset();
+    document.getElementById('casaDespData').value = todayISO();
+    document.getElementById('casaSaveDespBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+    renderCasaApp();
+    showToast('Despesa salva!', 'success');
+}
+
+function handleCasaResSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('casaResId').value || Date.now().toString();
+    const data = document.getElementById('casaResData').value;
+    if (!data) return alert('Informe a data.');
+    const valor = parseFloat(document.getElementById('casaResValor').value) || 0;
+    const tipo = document.getElementById('casaResTipo').value; // 'deposito' (guardar) ou 'retirada' (usar)
+    const obs = document.getElementById('casaResObs').value.trim();
+    const entry = { id, data, valor, tipo, observacao: obs };
+    if (editingCasaResId) {
+        const i = casaReservas.findIndex(x => x.id === editingCasaResId);
+        if (i !== -1) casaReservas[i] = entry;
+    } else {
+        casaReservas.push(entry);
+    }
+    saveCasaRes();
+    editingCasaResId = null;
+    document.getElementById('casaResForm').reset();
+    document.getElementById('casaResData').value = todayISO();
+    document.getElementById('casaSaveResBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar';
+    renderCasaApp();
+    showToast('Movimentação salva!', 'success');
+}
+
+window.editCasaReceb = function(id) {
+    const x = casaRecebimentos.find(e => e.id === id);
+    if (!x) return;
+    editingCasaRecebId = id;
+    document.getElementById('casaRecebId').value = x.id;
+    document.getElementById('casaRecebData').value = x.data;
+    document.getElementById('casaRecebValor').value = x.valor;
+    document.getElementById('casaRecebDesc').value = x.descricao || '';
+    document.getElementById('casaRecebFonte').value = x.fonte || '';
+    document.getElementById('casaSaveRecebBtn').innerHTML = '<i class="fa-solid fa-check"></i> Atualizar';
+};
+
+window.deleteCasaReceb = function(id) {
+    if (!confirm('Excluir?')) return;
+    casaRecebimentos = casaRecebimentos.filter(e => e.id !== id);
+    deleteCloudItem('casa_recebimentos', id);
+    saveCasaReceb();
+    renderCasaApp();
+};
+
+window.editCasaDesp = function(id) {
+    const x = casaDespesas.find(e => e.id === id);
+    if (!x) return;
+    editingCasaDespId = id;
+    document.getElementById('casaDespId').value = x.id;
+    document.getElementById('casaDespData').value = x.data;
+    document.getElementById('casaDespCategoria').value = x.categoria;
+    document.getElementById('casaDespValor').value = x.valor;
+    document.getElementById('casaDespDesc').value = x.descricao || '';
+    document.getElementById('casaDespStatus').value = x.status || 'Pago';
+    document.getElementById('casaSaveDespBtn').innerHTML = '<i class="fa-solid fa-check"></i> Atualizar';
+};
+
+window.deleteCasaDesp = function(id) {
+    if (!confirm('Excluir?')) return;
+    casaDespesas = casaDespesas.filter(e => e.id !== id);
+    deleteCloudItem('casa_despesas', id);
+    saveCasaDesp();
+    renderCasaApp();
+};
+
+window.editCasaRes = function(id) {
+    const x = casaReservas.find(e => e.id === id);
+    if (!x) return;
+    editingCasaResId = id;
+    document.getElementById('casaResId').value = x.id;
+    document.getElementById('casaResData').value = x.data;
+    document.getElementById('casaResValor').value = x.valor;
+    document.getElementById('casaResTipo').value = x.tipo;
+    document.getElementById('casaResObs').value = x.observacao || '';
+    document.getElementById('casaSaveResBtn').innerHTML = '<i class="fa-solid fa-check"></i> Atualizar';
+};
+
+window.deleteCasaRes = function(id) {
+    if (!confirm('Excluir?')) return;
+    casaReservas = casaReservas.filter(e => e.id !== id);
+    deleteCloudItem('casa_reservas', id);
+    saveCasaRes();
+    renderCasaApp();
+};
+
+function renderCasaApp() {
+    const m = document.getElementById('casaMonthFilter').value;
+    const recs = casaRecebimentos.filter(e => monthKey(e.data) === m).sort((a,b) => new Date(a.data)-new Date(b.data));
+    const deps = casaDespesas.filter(e => monthKey(e.data) === m).sort((a,b) => new Date(a.data)-new Date(b.data));
+
+    const totalRec = recs.reduce((s,e) => s + (+e.valor||0), 0);
+    const totalDep = deps.reduce((s,e) => s + (+e.valor||0), 0);
+    const saldoMes = totalRec - totalDep;
+
+    // Reserva total acumulada é a soma de todos os tempos
+    let totalRes = 0;
+    casaReservas.forEach(r => {
+        if (r.tipo === 'deposito') totalRes += (+r.valor||0);
+        else totalRes -= (+r.valor||0);
+    });
+
+    // KPIs
+    const tkpi = document.getElementById('casaKpiRec');
+    if (tkpi) tkpi.textContent = fmtR(totalRec);
+    const tkpd = document.getElementById('casaKpiDesp');
+    if (tkpd) tkpd.textContent = fmtR(totalDep);
+    const tks = document.getElementById('casaKpiSaldo');
+    if (tks) tks.textContent = fmtR(saldoMes);
+    if (tks) tks.className = saldoMes >= 0 ? 'kpi-value text-success' : 'kpi-value text-danger';
+    const tkr = document.getElementById('casaKpiReserva');
+    if (tkr) tkr.textContent = fmtR(totalRes);
+
+    // Tabela de recebimentos
+    const trc = document.getElementById('casaRecebTable');
+    if (trc) {
+        trc.innerHTML = recs.length === 0 ? '<tr><td colspan="4" class="empty-state">Nenhum recebimento este mês.</td></tr>' : recs.map(item => `
+            <tr>
+                <td>${dateBR(item.data)}</td>
+                <td>${item.fonte || '-'}</td>
+                <td>${item.descricao || '-'}</td>
+                <td class="text-success"><strong>${fmtR(item.valor)}</strong></td>
+                <td class="text-center">
+                    <button class="action-btn action-edit" onclick="editCasaReceb('${item.id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn action-delete" onclick="deleteCasaReceb('${item.id}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    }
+
+    // Tabela de despesas
+    const tdp = document.getElementById('casaDespTable');
+    if (tdp) {
+        tdp.innerHTML = deps.length === 0 ? '<tr><td colspan="5" class="empty-state">Nenhuma despesa este mês.</td></tr>' : deps.map(item => `
+            <tr>
+                <td>${dateBR(item.data)}</td>
+                <td><span class="badge-category">${item.categoria}</span></td>
+                <td>${item.descricao || '-'}</td>
+                <td class="text-danger"><strong>${fmtR(item.valor)}</strong></td>
+                <td>${item.status === 'Pago' ? '✅' : '⏳'}</td>
+                <td class="text-center">
+                    <button class="action-btn action-edit" onclick="editCasaDesp('${item.id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn action-delete" onclick="deleteCasaDesp('${item.id}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    }
+
+    // Tabela de reservas
+    const trs = document.getElementById('casaResTable');
+    if (trs) {
+        trs.innerHTML = casaReservas.length === 0 ? '<tr><td colspan="4" class="empty-state">Nenhuma movimentação na reserva ainda.</td></tr>' : casaReservas.slice(0, 50).map(item => `
+            <tr>
+                <td>${dateBR(item.data)}</td>
+                <td>${item.tipo === 'deposito' ? '🟢 Depósito' : '🔴 Retirada'}</td>
+                <td class="${item.tipo === 'deposito' ? 'text-success' : 'text-danger'}"><strong>${fmtR(item.valor)}</strong></td>
+                <td>${item.observacao || '-'}</td>
+                <td class="text-center">
+                    <button class="action-btn action-edit" onclick="editCasaRes('${item.id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn action-delete" onclick="deleteCasaRes('${item.id}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+    }
+
+    // Gráfico de pizza por categoria no mês
+    const ctx = document.getElementById('casaCatChart');
+    if (ctx) {
+        if (charts.casaCat) charts.casaCat.destroy();
+        const cats = {};
+        deps.forEach(e => { cats[e.categoria] = (cats[e.categoria]||0) + (+e.valor||0); });
+        charts.casaCat = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(cats),
+                datasets: [{ data: Object.values(cats), backgroundColor: ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#94a3b8'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8' } } } }
+        });
+    }
+
+    // Comparativo Receitas x Despesas
+    const ctxB = document.getElementById('casaCompareChart');
+    if (ctxB) {
+        if (charts.casaCompare) charts.casaCompare.destroy();
+        charts.casaCompare = new Chart(ctxB.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Receitas', 'Despesas', 'Sobra'],
+                datasets: [{
+                    label: 'Valores',
+                    data: [totalRec, totalDep, saldoMes],
+                    backgroundColor: ['rgba(16,185,129,.7)','rgba(239,68,68,.7)','rgba(59,130,246,.7)'],
+                    borderRadius: 8
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+        });
+    }
+}
+
+function exportCasaCSV() {
+    let csv = '\uFEFF';
+    csv += 'Data;Fonte;Descricao;Valor\n';
+    casaRecebimentos.forEach(e => { csv += `${dateBR(e.data)};${e.fonte || ''};"${e.descricao || ''}";${e.valor}\n`; });
+    csv += '\nData;Categoria;Descricao;Valor;Status\n';
+    casaDespesas.forEach(e => { csv += `${dateBR(e.data)};${e.categoria};"${e.descricao || ''}";${e.valor};${e.status}\n`; });
+    csv += '\nData;Tipo;Valor;Observacao\n';
+    casaReservas.forEach(e => { csv += `${dateBR(e.data)};${e.tipo};${e.valor};"${e.observacao || ''}"\n`; });
+    downloadCSV(csv, 'Controle_Casa.csv');
+}
+
+async function importCasaCSV(file) {
+    try {
+        const text = await readFileAsText(file);
+        const sep = detectSeparator(text);
+        const lines = text.split('\n').map(l => l.replace(/\r/g, '').replace(/^\uFEFF/, ''));
+        let section = '';
+        let added = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            if (line.startsWith('Data;')) { section = line.includes('Fonte') ? 'rec' : 'dep'; continue; }
+            if (line.startsWith('Data;Tipo')) { section = 'res'; continue; }
+            if (line.startsWith('TOTAL') || line.startsWith('Data;')) continue;
+            const cols = parseCSVLine(line, sep);
+            if (section === 'rec' && cols.length >= 4) {
+                const data = parseDateBR(cols[0]);
+                if (!data) continue;
+                const valor = parseFloat(cols[3]) || 0;
+                if (!casaRecebimentos.find(x => x.data === data && x.valor === valor && x.fonte === cols[1])) {
+                    casaRecebimentos.push({ id: Date.now().toString() + '_r' + i, data, fonte: cols[1] || '', descricao: (cols[2]||'').replace(/"/g,''), valor });
+                    added++;
+                }
+            } else if (section === 'dep' && cols.length >= 4) {
+                const data = parseDateBR(cols[0]);
+                if (!data) continue;
+                const valor = parseFloat(cols[3]) || 0;
+                if (!casaDespesas.find(x => x.data === data && x.valor === valor && x.categoria === cols[1])) {
+                    casaDespesas.push({ id: Date.now().toString() + '_d' + i, data, categoria: cols[1] || 'Outros', descricao: (cols[2]||'').replace(/"/g,''), valor, status: cols[4] || 'Pago' });
+                    added++;
+                }
+            } else if (section === 'res' && cols.length >= 3) {
+                const data = parseDateBR(cols[0]);
+                if (!data) continue;
+                const valor = parseFloat(cols[2]) || 0;
+                if (!casaReservas.find(x => x.data === data && x.valor === valor && x.tipo === cols[1])) {
+                    casaReservas.push({ id: Date.now().toString() + '_s' + i, data, tipo: cols[1], valor, observacao: (cols[3]||'').replace(/"/g,'') });
+                    added++;
+                }
+            }
+        }
+        if (added > 0) {
+            saveCasaReceb();
+            saveCasaDesp();
+            saveCasaRes();
+            populateCasaMonthFilter();
+            renderCasaApp();
+            showToast(`Importado: ${added} registro(s) de casa.`, 'success');
+        } else {
+            showToast('Nenhum dado novo no CSV.', 'warning');
+        }
+    } catch(err) {
+        showToast('Erro na importação: ' + err.message, 'error');
+    }
 }
 
 // ----- Tabs -----

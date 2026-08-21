@@ -116,6 +116,14 @@
                             <span class="account-type-desc">Calculadora m², A4, Estoque, DRE e Finanças Pessoais</span>
                         </div>
                     </label>
+                    <label class="account-type-card" id="typeCardCasa">
+                        <input type="radio" name="accountType" value="casa" required>
+                        <div class="account-type-body">
+                            <div class="account-type-icon casa-icon"><i class="fa-solid fa-house"></i></div>
+                            <span class="account-type-title">Controle de Casa</span>
+                            <span class="account-type-desc">Salário, contas, mercado e cofrinho</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
@@ -989,6 +997,157 @@
             </div>
             <div class="modal-footer">
                 <button type="button" id="cancelRoupasSettingsBtn" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== CONTROLE DE CASA APP ===================== -->
+<div class="app-container hidden" id="casaApp">
+    <header class="app-header-container">
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-icon" style="background:linear-gradient(135deg,#10b981,#059669)"><i class="fa-solid fa-house"></i></div>
+                <div>
+                    <h1>Controle de Casa</h1>
+                    <span class="subtitle">Salário, Contas e Cofrinho</span>
+                </div>
+            </div>
+            <div class="top-actions">
+                <div class="user-profile-badge">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span id="casaHeaderUserName">Usuário</span>
+                    <button id="casaLogoutBtn" class="btn btn-sm btn-ghost"><i class="fa-solid fa-right-from-bracket"></i> Sair</button>
+                </div>
+                <button id="casaSyncBtn" class="btn btn-outline" style="min-width: 130px;"><i class="fa-solid fa-cloud-arrow-up"></i> <span id="casaSyncTime">Salvo</span></button>
+                <button id="openCasaSettingsBtn" class="btn btn-outline"><i class="fa-solid fa-gear"></i> Config</button>
+                <button id="casaExportCsvBtn" class="btn btn-secondary"><i class="fa-solid fa-file-excel"></i> Exportar CSV</button>
+                <button class="btn btn-outline" onclick="document.getElementById('casaImportCsvFile').click()"><i class="fa-solid fa-file-import"></i> Importar CSV</button>
+                <input type="file" id="casaImportCsvFile" accept=".csv,.txt" class="hidden" style="display:none">
+            </div>
+        </div>
+        <div class="controls-bar">
+            <nav class="tabs-nav" id="casaTabsNav">
+                <button class="tab-btn active" data-ctab="ctab-resumo"><i class="fa-solid fa-chart-pie"></i> Resumo</button>
+                <button class="tab-btn" data-ctab="ctab-recebimentos"><i class="fa-solid fa-wallet"></i> Recebimentos</button>
+                <button class="tab-btn" data-ctab="ctab-despesas"><i class="fa-solid fa-money-bill-wave"></i> Despesas</button>
+                <button class="tab-btn" data-ctab="ctab-cofrinho"><i class="fa-solid fa-piggy-bank"></i> Cofrinho</button>
+            </nav>
+            <select id="casaMonthFilter" class="month-filter"></select>
+        </div>
+    </header>
+
+    <!-- Aba Resumo -->
+    <div class="ctab-content active" id="ctab-resumo">
+        <div class="kpi-grid">
+            <div class="kpi-card kpi-success">
+                <div class="kpi-label"><i class="fa-solid fa-arrow-down"></i> Receitas do Mês</div>
+                <div class="kpi-value" id="casaKpiRec">R$ 0</div>
+            </div>
+            <div class="kpi-card kpi-danger">
+                <div class="kpi-label"><i class="fa-solid fa-arrow-up"></i> Despesas do Mês</div>
+                <div class="kpi-value" id="casaKpiDesp">R$ 0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label"><i class="fa-solid fa-scale-balanced"></i> Saldo do Mês</div>
+                <div class="kpi-value" id="casaKpiSaldo">R$ 0</div>
+            </div>
+            <div class="kpi-card kpi-info">
+                <div class="kpi-label"><i class="fa-solid fa-piggy-bank"></i> Reserva Total</div>
+                <div class="kpi-value" id="casaKpiReserva">R$ 0</div>
+            </div>
+        </div>
+        <div class="charts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem">
+            <div class="chart-container"><h3>Receitas x Despesas</h3><div style="height:300px"><canvas id="casaCompareChart"></canvas></div></div>
+            <div class="chart-container"><h3>Despesas por Categoria</h3><div style="height:300px"><canvas id="casaCatChart"></canvas></div></div>
+        </div>
+    </div>
+
+    <!-- Aba Recebimentos -->
+    <div class="ctab-content" id="ctab-recebimentos">
+        <div class="form-section">
+            <h3><i class="fa-solid fa-wallet"></i> Novo Recebimento</h3>
+            <form id="casaRecebForm" class="entry-form-grid">
+                <input type="hidden" id="casaRecebId">
+                <div class="form-group"><label>Data</label><input type="date" id="casaRecebData" class="form-control" required></div>
+                <div class="form-group"><label>Fonte</label><input type="text" id="casaRecebFonte" class="form-control" value="Salário" placeholder="Ex: Salário, Freelance"></div>
+                <div class="form-group"><label>Valor (R$)</label><input type="number" id="casaRecebValor" class="form-control" step="0.01" min="0" required></div>
+                <div class="form-group"><label>Descrição</label><input type="text" id="casaRecebDesc" class="form-control" placeholder="Opcional"></div>
+                <div class="form-group form-actions"><button type="submit" id="casaSaveRecebBtn" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar</button></div>
+            </form>
+        </div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>Data</th><th>Fonte</th><th>Descrição</th><th>Valor</th><th></th></tr></thead><tbody id="casaRecebTable"></tbody></table></div>
+    </div>
+
+    <!-- Aba Despesas -->
+    <div class="ctab-content" id="ctab-despesas">
+        <div class="form-section">
+            <h3><i class="fa-solid fa-money-bill-wave"></i> Nova Despesa</h3>
+            <form id="casaDespForm" class="entry-form-grid">
+                <input type="hidden" id="casaDespId">
+                <div class="form-group"><label>Data</label><input type="date" id="casaDespData" class="form-control" required></div>
+                <div class="form-group"><label>Categoria</label><select id="casaDespCategoria" class="form-control"></select></div>
+                <div class="form-group"><label>Valor (R$)</label><input type="number" id="casaDespValor" class="form-control" step="0.01" min="0" required></div>
+                <div class="form-group"><label>Descrição</label><input type="text" id="casaDespDesc" class="form-control" placeholder="Opcional"></div>
+                <div class="form-group"><label>Status</label><select id="casaDespStatus" class="form-control"><option value="Pago">Pago</option><option value="Pendente">Pendente</option></select></div>
+                <div class="form-group form-actions"><button type="submit" id="casaSaveDespBtn" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar</button></div>
+            </form>
+        </div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody id="casaDespTable"></tbody></table></div>
+    </div>
+
+    <!-- Aba Cofrinho -->
+    <div class="ctab-content" id="ctab-cofrinho">
+        <div class="form-section">
+            <h3><i class="fa-solid fa-piggy-bank"></i> Movimentação do Cofrinho</h3>
+            <form id="casaResForm" class="entry-form-grid">
+                <input type="hidden" id="casaResId">
+                <div class="form-group"><label>Data</label><input type="date" id="casaResData" class="form-control" required></div>
+                <div class="form-group"><label>Tipo</label><select id="casaResTipo" class="form-control"><option value="deposito">Depositar (Guardar)</option><option value="retirada">Retirar (Usar)</option></select></div>
+                <div class="form-group"><label>Valor (R$)</label><input type="number" id="casaResValor" class="form-control" step="0.01" min="0" required></div>
+                <div class="form-group"><label>Observação</label><input type="text" id="casaResObs" class="form-control" placeholder="Opcional"></div>
+                <div class="form-group form-actions"><button type="submit" id="casaSaveResBtn" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar</button></div>
+            </form>
+        </div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Observação</th><th></th></tr></thead><tbody id="casaResTable"></tbody></table></div>
+    </div>
+</div>
+
+<!-- Modal Configurações Casa -->
+<div id="casaSettingsModal" class="modal-overlay hidden">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-gear"></i> Configurações — Controle de Casa</h3>
+            <button class="modal-close-btn" id="closeCasaSettingsBtn">&times;</button>
+        </div>
+        <form id="casaSettingsForm" class="modal-form">
+            <div class="form-group">
+                <label for="casaBackupEmail">E-mail para Receber Backups:</label>
+                <input type="email" id="casaBackupEmail" placeholder="seuemail@gmail.com" class="form-control">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="casaEmailjsServiceId">EmailJS — Service ID:</label>
+                    <input type="text" id="casaEmailjsServiceId" placeholder="service_xxxxxxx" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="casaEmailjsTemplateId">EmailJS — Template ID:</label>
+                    <input type="text" id="casaEmailjsTemplateId" placeholder="template_xxxxxxx" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="casaEmailjsPublicKey">EmailJS — Public Key:</label>
+                <input type="text" id="casaEmailjsPublicKey" placeholder="xxxxxxxxxxxxxxxx" class="form-control">
+            </div>
+            <div class="backup-actions">
+                <button type="button" id="casaManualBackupBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-download"></i> Baixar Backup JSON</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('casaImportJsonFile').click()"><i class="fa-solid fa-upload"></i> Restaurar JSON</button>
+                <button type="button" id="casaTestEmailBtn" class="btn btn-outline btn-sm"><i class="fa-solid fa-paper-plane"></i> Testar Envio</button>
+                <input type="file" id="casaImportJsonFile" accept=".json" class="hidden" style="display:none">
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelCasaSettingsBtn" class="btn btn-outline">Cancelar</button>
                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
             </div>
         </form>
