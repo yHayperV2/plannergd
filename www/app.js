@@ -939,10 +939,10 @@ function subscribeRealtime() {
             'postgres_changes',
             { event: '*', schema: 'public', table: table },
             (payload) => {
-                if (channelVersion !== SyncEngine.syncVersion) return;
-                if (SyncEngine.activeSyncVersion > 0) return;
                 const rec = payload.new || payload.old;
-                if (rec && rec.user_id && currentUser && rec.user_id !== currentUser.supabaseUserId) return;
+                if (rec && rec.user_id && currentUser && currentUser.supabaseUserId) {
+                    if (rec.user_id !== currentUser.supabaseUserId) return;
+                }
                 handleRealtimeChange(payload);
             }
         );
@@ -969,8 +969,34 @@ function unsubscribeRealtime() {
 }
 
 function handleRealtimeChange(payload) {
-    const { eventType, table, new: newRec, old: oldRec } = payload;
-    SyncEngine.applyRealtimeEvent(eventType, table, newRec, oldRec);
+    try {
+        const { eventType, table, new: newRec, old: oldRec } = payload;
+        if (typeof SyncEngine !== 'undefined' && SyncEngine.applyRealtimeEvent) {
+            SyncEngine.applyRealtimeEvent(eventType, table, newRec, oldRec);
+        }
+
+        if (typeof lastSyncTimeStr !== 'undefined') {
+            lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            if (typeof updateSyncTimeUI === 'function') updateSyncTimeUI();
+        }
+
+        if (currentUser && currentUser.accountType === 'uber') {
+            populateUberMonthFilter();
+            renderUberApp();
+        } else if (currentUser && currentUser.accountType === 'roupas') {
+            populateRoupasMonthFilter();
+            renderRoupasApp();
+        } else if (currentUser && currentUser.accountType === 'grafica') {
+            populateGraficaMonthFilter();
+            renderGraficaApp();
+        } else if (currentUser && currentUser.accountType === 'casa') {
+            populateCasaMonthFilter();
+            renderCasaApp();
+        }
+    } catch(err) {
+        console.error('Realtime render error:', err);
+    }
+}
 
     lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     updateSyncTimeUI();
