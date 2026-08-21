@@ -743,8 +743,41 @@ async function sendEmailBackup(manualTest = false) {
 }
 
 // =====================================================
-// INIT
+// INIT & HELPERS
 // =====================================================
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function reRenderCurrentApp() {
+    if (!currentUser) return;
+    if (currentUser.accountType === 'uber') renderUberApp();
+    else if (currentUser.accountType === 'roupas') renderRoupasApp();
+    else if (currentUser.accountType === 'grafica') renderGraficaApp();
+    else if (currentUser.accountType === 'casa') renderCasaApp();
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentUser) {
+        SyncEngine.loadIncremental().then(() => reRenderCurrentApp());
+    }
+});
+
+document.addEventListener('resume', () => {
+    if (currentUser) {
+        SyncEngine.loadIncremental().then(() => reRenderCurrentApp());
+    }
+}, false);
+
 document.addEventListener('DOMContentLoaded', () => {
     loadUsers();
     setupAuthUI();
@@ -1294,6 +1327,8 @@ function populateUberMonthFilter() {
 
 // ----- Listeners -----
 function setupUberListeners() {
+    bindAutoSave('entryForm', 'entryId', handleUberSubmit, id => editingUberId = id);
+    bindAutoSave('personalForm', 'personalId', handlePersonalSubmit, id => editingPersonalId = id);
     document.getElementById('monthFilter').onchange = renderUberApp;
 
     document.getElementById('entryForm').onsubmit = handleUberSubmit;
@@ -1525,11 +1560,11 @@ function renderUberSummary(uberNet, personalTotal) {
 }
 
 // ----- Uber CRUD -----
-function handleUberSubmit(e) {
-    e.preventDefault();
+function handleUberSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('entryId').value || generateId();
     const date = document.getElementById('entryDate').value;
-    if (!date) return alert('Informe a data.');
+    if (!date) if (isAuto) return; else return alert('Informe a data.');
     const entry = {
         id, date,
         gross: parseFloat(document.getElementById('entryGross').value)||0,
@@ -1548,7 +1583,7 @@ function handleUberSubmit(e) {
     document.getElementById('monthFilter').value = monthKey(date);
     populateUberMonthFilter();
     document.getElementById('monthFilter').value = monthKey(date);
-    resetUberForm();
+    if (!isAuto) resetUberForm();
     renderUberApp();
 }
 
@@ -1587,11 +1622,11 @@ function resetUberForm() {
 }
 
 // ----- Personal CRUD -----
-function handlePersonalSubmit(e) {
-    e.preventDefault();
+function handlePersonalSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('personalId').value || generateId();
     const date = document.getElementById('personalDate').value;
-    if (!date) return alert('Informe a data.');
+    if (!date) if (isAuto) return; else return alert('Informe a data.');
     const entry = {
         id, date,
         category: document.getElementById('personalCategory').value,
@@ -1609,7 +1644,7 @@ function handlePersonalSubmit(e) {
     document.getElementById('monthFilter').value = monthKey(date);
     populateUberMonthFilter();
     document.getElementById('monthFilter').value = monthKey(date);
-    resetPersonalForm();
+    if (!isAuto) resetPersonalForm();
     renderUberApp();
 }
 
@@ -1860,6 +1895,9 @@ function setupRoupasMonthFilter() {
 
 // ----- Listeners -----
 function setupRoupasListeners() {
+    bindAutoSave('estoqueForm', 'estoqueId', handleRoupasEstoqueSubmit, id => editingEstoqueId = id);
+    bindAutoSave('compraForm', 'compraId', handleRoupasCompraSubmit, id => editingCompraId = id);
+    bindAutoSave('vendaForm', 'vendaId', handleRoupasVendaSubmit, id => editingVendaId = id);
     // Estoque form toggle
     document.getElementById('openAddEstoqueBtn').onclick = () => {
         resetEstoqueForm();
@@ -2105,8 +2143,8 @@ function renderRoupasResumo(comprasM, vendasM) {
 }
 
 // ----- CRUD: Estoque -----
-function handleEstoqueSubmit(e) {
-    e.preventDefault();
+function handleEstoqueSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('estoqueId').value || generateId();
     const item = {
         id,
@@ -2118,7 +2156,7 @@ function handleEstoqueSubmit(e) {
         precoVenda: parseFloat(document.getElementById('estoquePrecoVenda').value)||0,
         dataEntrada: document.getElementById('estoqueDataEntrada').value
     };
-    if (!item.nome) return alert('Informe o nome do produto.');
+    if (!item.nome) if (isAuto) return; else return alert('Informe o nome do produto.');
     if (editingEstoqueId) {
         const i = estoqueItems.findIndex(e => e.id === editingEstoqueId);
         if (i !== -1) estoqueItems[i] = item;
@@ -2127,7 +2165,7 @@ function handleEstoqueSubmit(e) {
     }
     saveEstoque();
     document.getElementById('estoqueFormWrapper').classList.add('hidden');
-    resetEstoqueForm();
+    if (!isAuto) resetEstoqueForm();
     renderRoupasApp();
     showToast(`Produto '${item.nome} (${item.tamanho})' salvo no estoque!`, 'success');
 }
@@ -2165,11 +2203,11 @@ function resetEstoqueForm() {
 }
 
 // ----- CRUD: Compras -----
-function handleCompraSubmit(e) {
-    e.preventDefault();
+function handleCompraSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('compraId').value || generateId();
     const data = document.getElementById('compraData').value;
-    if (!data) return alert('Informe a data.');
+    if (!data) if (isAuto) return; else return alert('Informe a data.');
     const entry = {
         id, data,
         produto: document.getElementById('compraProduto').value.trim(),
@@ -2188,7 +2226,7 @@ function handleCompraSubmit(e) {
     document.getElementById('roupasMonthFilter').value = monthKey(data);
     populateRoupasMonthFilter();
     document.getElementById('roupasMonthFilter').value = monthKey(data);
-    resetCompraForm();
+    if (!isAuto) resetCompraForm();
     renderRoupasApp();
 }
 
@@ -2258,17 +2296,17 @@ function calcVendaLucroPreview() {
     document.getElementById('vendaLucroVal').className = lucro >= 0 ? 'text-success' : 'text-danger';
 }
 
-function handleVendaSubmit(e) {
-    e.preventDefault();
+function handleVendaSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('vendaId').value || generateId();
     const data = document.getElementById('vendaData').value;
-    if (!data) return alert('Informe a data da venda.');
+    if (!data) if (isAuto) return; else return alert('Informe a data da venda.');
 
     const stockId = document.getElementById('vendaProdutoSelect').value;
     const stockItem = estoqueItems.find(e => e.id === stockId);
 
     if (!stockItem) {
-        return alert('Selecione uma peça válida do estoque.');
+        if (isAuto) return; else return alert('Selecione uma peça válida do estoque.');
     }
 
     const qtd = parseInt(document.getElementById('vendaQtd').value)||1;
@@ -2309,7 +2347,7 @@ function handleVendaSubmit(e) {
     document.getElementById('roupasMonthFilter').value = monthKey(data);
     populateRoupasMonthFilter();
     document.getElementById('roupasMonthFilter').value = monthKey(data);
-    resetVendaForm();
+    if (!isAuto) resetVendaForm();
     renderRoupasApp();
 }
 
@@ -3196,6 +3234,9 @@ function setupCasaTabs() {
 }
 
 function setupCasaListeners() {
+    bindAutoSave('recebimentoForm', 'recebimentoId', handleCasaRecebimentoSubmit, id => editingCasaRecebId = id);
+    bindAutoSave('despesaCasaForm', 'despesaCasaId', handleCasaDespesaSubmit, id => editingCasaDespId = id);
+    bindAutoSave('reservaForm', 'reservaId', handleCasaReservaSubmit, id => editingCasaResId = id);
     document.getElementById('casaRecebForm').onsubmit = handleCasaRecebSubmit;
     document.getElementById('casaDespForm').onsubmit = handleCasaDespSubmit;
     document.getElementById('casaResForm').onsubmit = handleCasaResSubmit;
@@ -3258,11 +3299,11 @@ function setupCasaSettingsModal() {
     }
 }
 
-function handleCasaRecebSubmit(e) {
-    e.preventDefault();
+function handleCasaRecebSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('casaRecebId').value || generateId();
     const data = document.getElementById('casaRecebData').value;
-    if (!data) return alert('Informe a data.');
+    if (!data) if (isAuto) return; else return alert('Informe a data.');
     const valor = parseFloat(document.getElementById('casaRecebValor').value) || 0;
     const desc = document.getElementById('casaRecebDesc').value.trim();
     const fonte = document.getElementById('casaRecebFonte').value.trim() || 'Salário';
@@ -3282,11 +3323,11 @@ function handleCasaRecebSubmit(e) {
     showToast('Recebimento salvo!', 'success');
 }
 
-function handleCasaDespSubmit(e) {
-    e.preventDefault();
+function handleCasaDespSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('casaDespId').value || generateId();
     const data = document.getElementById('casaDespData').value;
-    if (!data) return alert('Informe a data.');
+    if (!data) if (isAuto) return; else return alert('Informe a data.');
     const valor = parseFloat(document.getElementById('casaDespValor').value) || 0;
     const categoria = document.getElementById('casaDespCategoria').value;
     const desc = document.getElementById('casaDespDesc').value.trim();
@@ -3307,11 +3348,11 @@ function handleCasaDespSubmit(e) {
     showToast('Despesa salva!', 'success');
 }
 
-function handleCasaResSubmit(e) {
-    e.preventDefault();
+function handleCasaResSubmit(e, isAuto = false) {
+    if (e) e.preventDefault();
     const id = document.getElementById('casaResId').value || generateId();
     const data = document.getElementById('casaResData').value;
-    if (!data) return alert('Informe a data.');
+    if (!data) if (isAuto) return; else return alert('Informe a data.');
     const valor = parseFloat(document.getElementById('casaResValor').value) || 0;
     const tipo = document.getElementById('casaResTipo').value; // 'deposito' (guardar) ou 'retirada' (usar)
     const obs = document.getElementById('casaResObs').value.trim();
