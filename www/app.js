@@ -863,6 +863,13 @@ function getRealtimeTables() {
 
 function subscribeRealtime() {
     if (!supabaseClient || !currentUser) return;
+    
+    if (realtimeChannel) {
+        if (realtimeChannel.state === 'joined') {
+            return;
+        }
+    }
+    
     unsubscribeRealtime();
 
     const tables = getRealtimeTables();
@@ -4936,3 +4943,35 @@ window.renderCatalogM2 = function() {
         });
     });
 })();
+
+
+// ==========================================
+// MOBILE & PWA LIFECYCLE MANAGEMENT
+// ==========================================
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        console.log('[Lifecycle] App voltou ao primeiro plano (Foreground). Sincronizando...');
+        if (currentUser && navigator.onLine) {
+            subscribeRealtime();
+            SyncEngine.loadIncremental().catch(e => console.warn('[Lifecycle] loadIncremental falhou:', e.message));
+            SyncEngine.processQueue();
+        }
+    } else {
+        console.log('[Lifecycle] App minimizado (Background).');
+    }
+});
+
+window.addEventListener('online', () => {
+    console.log('[Network] Conexão restabelecida. Sincronizando...');
+    showToast('Conexão restabelecida', 'success');
+    if (currentUser) {
+        subscribeRealtime();
+        SyncEngine.loadIncremental().catch(e => console.warn('[Network] loadIncremental falhou:', e.message));
+        SyncEngine.processQueue();
+    }
+});
+
+window.addEventListener('offline', () => {
+    console.log('[Network] Conexão perdida.');
+    showToast('Você está offline. Alterações serão salvas localmente.', 'warning');
+});
