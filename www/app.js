@@ -998,24 +998,6 @@ function handleRealtimeChange(payload) {
     }
 }
 
-    lastSyncTimeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    updateSyncTimeUI();
-
-    if (currentUser.accountType === 'uber') {
-        populateUberMonthFilter();
-        renderUberApp();
-    } else if (currentUser.accountType === 'roupas') {
-        populateRoupasMonthFilter();
-        renderRoupasApp();
-    } else if (currentUser.accountType === 'grafica') {
-        populateGraficaMonthFilter();
-        renderGraficaApp();
-    } else if (currentUser.accountType === 'casa') {
-        populateCasaMonthFilter();
-        renderCasaApp();
-    }
-}
-
 let lastSyncTimeStr = 'Salvo';
 function updateSyncTimeUI() {
     const uBtn = document.getElementById('uberSyncTime');
